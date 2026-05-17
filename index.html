@@ -322,8 +322,8 @@
     display: flex; flex-direction: column; gap: 8px;
   }
   .notes-history-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; border-radius: 10px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: 10px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.05);
     transition: background 0.15s;
@@ -527,10 +527,21 @@
 <div class="notes-history-overlay" id="notesHistoryOverlay">
   <div class="notes-history-box">
     <div class="flex items-center justify-between mb-1">
-      <h3 class="text-white text-base font-medium">已归档的便签</h3>
-      <button class="ico-btn" onclick="toggleNotesHistory()" title="关闭">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
+      <div class="flex items-center gap-3">
+        <h3 class="text-white text-base font-medium">已归档的便签</h3>
+        <label class="flex items-center gap-1.5 cursor-pointer select-none" id="selectAllLabel" style="display:none">
+          <input type="checkbox" id="selectAllNotes" onchange="toggleSelectAllNotes()" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer">
+          <span style="color:rgba(255,255,255,0.35);font-size:11px">全选</span>
+        </label>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button class="ico-btn" id="btnBatchDel" onclick="batchDeleteNotes()" title="批量删除" style="display:none;width:auto;padding:0 10px;border-radius:20px;font-size:11px;color:rgba(239,68,68,0.7)">
+          删除选中
+        </button>
+        <button class="ico-btn" onclick="toggleNotesHistory()" title="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
     </div>
     <div class="notes-history-list" id="notesHistoryList">
       <div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>
@@ -989,6 +1000,7 @@ $customOverlay.addEventListener('click', function(e) {
 });
 
 
+
 // ============ 便签功能 ============
 let notes = [];
 let notesArchived = [];
@@ -1040,6 +1052,61 @@ function createNote(x, y) {
   toast('便签已创建');
 }
 
+function updateNoteTitle(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  const el = document.querySelector(`.note-wrapper[data-note-id="${id}"]`);
+  if (!el) return;
+  const body = el.querySelector('.note-body');
+  if (body) note.content = body.innerHTML;
+  const titleEl = document.getElementById('note-title-' + id);
+  if (titleEl) titleEl.textContent = generateNoteName(note);
+}
+
+function generateNoteName(note) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = note.content || '';
+
+  // Check for images FIRST (before text, otherwise × button text wins)
+  const imgs = tmp.querySelectorAll('img');
+  if (imgs.length > 0) {
+    const alt = imgs[0].alt || '';
+    const src = imgs[0].src || '';
+    // Get extension from data URI or alt
+    let ext = '';
+    const mimeMatch = src.match(/^data:image\/([^;]+)/);
+    if (mimeMatch) ext = mimeMatch[1].toUpperCase();
+    // If alt is a filename (from drop), use it; otherwise use "图片"
+    let name = (alt && alt !== 'pasted') ? alt : ('图片' + (ext ? '.' + ext.toLowerCase() : ''));
+    // Prefix with image type
+    const label = (ext ? ext + '-' : '图片-');
+    const fullName = label + name;
+    return fullName.length > 18 ? fullName.substring(0, 18) + '…' : fullName;
+  }
+
+  // Check for file attachments SECOND
+  const files = tmp.querySelectorAll('.file-attach a');
+  if (files.length > 0) {
+    const fileName = files[0].getAttribute('download') || files[0].textContent || '文件';
+    const ext = fileName.includes('.') ? fileName.split('.').pop().toUpperCase() : '';
+    const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+    const shortBase = baseName.length > 8 ? baseName.substring(0, 8) + '…' : baseName;
+    return (ext ? ext + '-' : '文件-') + shortBase;
+  }
+
+  // Text content LAST — exclude delete button text
+  const dels = tmp.querySelectorAll('.note-item-del');
+  dels.forEach(d => d.remove());
+  const text = tmp.textContent || tmp.innerText || '';
+  const trimmed = text.replace(/\s+/g, ' ').trim();
+
+  if (trimmed) {
+    return '文本-' + (trimmed.length > 5 ? trimmed.substring(0, 5) + '…' : trimmed);
+  }
+
+  return '空白便签';
+}
+
 function renderNote(note) {
   const el = document.createElement('div');
   el.className = 'note-wrapper';
@@ -1051,7 +1118,7 @@ function renderNote(note) {
   el.style.zIndex = noteZ++;
   el.innerHTML = `
     <div class="note-header" data-action="drag">
-      <span>便签 ${note.id}</span>
+      <span class="note-title" id="note-title-${note.id}">${generateNoteName(note)}</span>
       <button data-action="close" title="归档（可从历史恢复）">×</button>
     </div>
     <div class="note-body" contenteditable="true" spellcheck="false">${note.content}</div>
@@ -1091,13 +1158,19 @@ function renderNote(note) {
     archiveNote(note.id);
   });
 
-  // Content change → auto save
+  // Content change → auto save + update title
   let saveTimeout;
   body.addEventListener('input', () => {
     clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(saveNotes, 600);
+    saveTimeout = setTimeout(() => {
+      saveNotes();
+      updateNoteTitle(note.id);
+    }, 600);
   });
-  body.addEventListener('blur', saveNotes);
+  body.addEventListener('blur', () => {
+    saveNotes();
+    updateNoteTitle(note.id);
+  });
 
   // Paste handler: images → base64, files → data URI links
   body.addEventListener('paste', e => {
@@ -1111,6 +1184,7 @@ function renderNote(note) {
         reader.onload = ev => {
           document.execCommand('insertHTML', false, `<span class="note-img-wrap"><img src="${ev.target.result}" alt="pasted" draggable="true"><button class="note-item-del">×</button></span>`);
           saveNotes();
+          updateNoteTitle(note.id);
         };
         reader.readAsDataURL(blob);
         return;
@@ -1136,6 +1210,7 @@ function renderNote(note) {
           </div><button class="note-item-del">×</button></span>`;
           document.execCommand('insertHTML', false, html);
           saveNotes();
+          updateNoteTitle(note.id);
         };
         reader.readAsDataURL(blob);
         return;
@@ -1181,6 +1256,7 @@ function renderNote(note) {
           document.execCommand('insertHTML', false, html);
         }
         saveNotes();
+        updateNoteTitle(note.id);
       };
       reader.readAsDataURL(file);
     });
@@ -1192,7 +1268,12 @@ function renderNote(note) {
       e.preventDefault();
       e.stopPropagation();
       const wrap = e.target.closest('.note-img-wrap') || e.target.closest('.note-file-wrap');
-      if (wrap) { wrap.remove(); saveNotes(); }
+      if (wrap) {
+        const noteEl = wrap.closest('.note-wrapper');
+        const noteId = noteEl ? parseInt(noteEl.dataset.noteId) : 0;
+        wrap.remove(); saveNotes();
+        if (noteId) updateNoteTitle(noteId);
+      }
     }
   });
 
@@ -1250,23 +1331,43 @@ function renderAllNotes() {
   notes.forEach(n => renderNote(n));
 }
 
-// Soft-delete: archive instead of remove
+// Check if note content is empty (no text, no images, no files)
+function isNoteContentEmpty(content) {
+  if (!content || !content.trim()) return true;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = content;
+  // Remove delete buttons before checking
+  tmp.querySelectorAll('.note-item-del').forEach(d => d.remove());
+  const text = (tmp.textContent || '').replace(/\s+/g, '').trim();
+  const hasImg = tmp.querySelectorAll('img').length > 0;
+  const hasFile = tmp.querySelectorAll('.file-attach').length > 0;
+  return !text && !hasImg && !hasFile;
+}
+
+// Close note: archive non-empty, discard empty
 function archiveNote(id) {
   const note = notes.find(n => n.id === id);
   if (!note) return;
-  // Sync latest DOM content before archiving
+  // Sync latest DOM content
   const el = document.querySelector(`.note-wrapper[data-note-id="${id}"]`);
   if (el) {
     const body = el.querySelector('.note-body');
     if (body) note.content = body.innerHTML;
     el.remove();
   }
+
+  if (isNoteContentEmpty(note.content)) {
+    // Empty note: just discard
+    notes = notes.filter(n => n.id !== id);
+    saveNotes();
+    return;
+  }
+
   note.updatedAt = Date.now();
   notes = notes.filter(n => n.id !== id);
   notesArchived.push(note);
   saveNotes();
   saveArchived();
-  toast('便签已归档（可从历史恢复）');
 }
 
 // Permanently delete from archive
@@ -1292,19 +1393,36 @@ function restoreNote(id) {
 }
 
 // History panel
+let historySelected = new Set();
+
 function renderNotesHistory() {
   const list = document.getElementById('notesHistoryList');
+  const selectAllLabel = document.getElementById('selectAllLabel');
+  const selectAllCheckbox = document.getElementById('selectAllNotes');
+  const btnBatchDel = document.getElementById('btnBatchDel');
+  historySelected.clear();
+
   if (notesArchived.length === 0) {
     list.innerHTML = '<div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>';
+    selectAllLabel.style.display = 'none';
+    btnBatchDel.style.display = 'none';
     return;
   }
+  selectAllLabel.style.display = 'flex';
+  btnBatchDel.style.display = 'flex';
+  selectAllCheckbox.checked = false;
+  updateBatchDelBtn();
+
   list.innerHTML = notesArchived.map(n => {
-    const text = n.content ? n.content.replace(/<[^>]*>/g, '').substring(0, 80) : '空便签';
+    const noteObj = { id: n.id, content: n.content || '' };
+    const displayName = generateNoteName(noteObj);
+    const rawText = n.content ? n.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
     const date = n.updatedAt ? new Date(n.updatedAt).toLocaleString('zh-CN') : '';
     return `
       <div class="notes-history-item">
+        <input type="checkbox" class="history-item-check" data-id="${n.id}" onchange="onHistoryItemToggle(this)" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;flex-shrink:0">
         <span class="note-archive-badge">#${n.id}</span>
-        <span class="notes-history-preview" title="${date}">${text || '空便签'}</span>
+        <span class="notes-history-preview" title="${date + (rawText ? '\\n' + rawText.substring(0, 80) : '') }">${displayName}</span>
         <span style="color:rgba(255,255,255,0.18);font-size:10px;flex-shrink:0">${date}</span>
         <div class="notes-history-actions">
           <button class="btn-history-restore" onclick="restoreNote(${n.id})" title="恢复">↩</button>
@@ -1312,6 +1430,39 @@ function renderNotesHistory() {
         </div>
       </div>`;
   }).join('');
+}
+
+function onHistoryItemToggle(checkbox) {
+  const id = parseInt(checkbox.dataset.id);
+  if (checkbox.checked) historySelected.add(id);
+  else historySelected.delete(id);
+  updateBatchDelBtn();
+}
+
+function updateBatchDelBtn() {
+  const btn = document.getElementById('btnBatchDel');
+  if (btn) btn.textContent = historySelected.size > 0 ? `删除选中(${historySelected.size})` : '删除选中';
+}
+
+function toggleSelectAllNotes() {
+  const checked = document.getElementById('selectAllNotes').checked;
+  document.querySelectorAll('.history-item-check').forEach(cb => {
+    cb.checked = checked;
+    const id = parseInt(cb.dataset.id);
+    if (checked) historySelected.add(id);
+    else historySelected.delete(id);
+  });
+  updateBatchDelBtn();
+}
+
+function batchDeleteNotes() {
+  if (historySelected.size === 0) return;
+  const count = historySelected.size;
+  notesArchived = notesArchived.filter(n => !historySelected.has(n.id));
+  historySelected.clear();
+  saveArchived();
+  renderNotesHistory();
+  toast(`已删除 ${count} 条记录`);
 }
 
 function toggleNotesHistory() {
