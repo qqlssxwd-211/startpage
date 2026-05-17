@@ -329,6 +329,50 @@
     transition: background 0.15s;
   }
   .notes-history-item:hover { background: rgba(255,255,255,0.08); }
+  .notes-history-item.longterm {
+    background: rgba(249,115,22,0.06);
+    border-color: rgba(249,115,22,0.12);
+  }
+  .notes-history-item.longterm:hover { background: rgba(249,115,22,0.12); }
+  .notes-history-section-title {
+    color: rgba(255,255,255,0.25); font-size: 10px;
+    padding: 2px 0 4px; margin-bottom: 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .notes-history-section-title.longterm { color: rgba(249,115,22,0.5); }
+  .btn-history-longterm {
+    background: rgba(249,115,22,0.12); color: rgba(249,115,22,0.7);
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; border: none;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn-history-longterm:hover { background: rgba(249,115,22,0.3); }
+  .btn-history-longterm.active { background: rgba(249,115,22,0.3); color: rgba(249,115,22,0.9); }
+  /* ── 删除确认弹窗 ── */
+  .confirm-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .confirm-box {
+    background: rgba(22,30,50,0.96);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 20px 24px; width: 340px; max-width: 90vw;
+    box-shadow: 0 20px 48px rgba(0,0,0,0.55);
+    text-align: center;
+  }
+  .confirm-box p { color: rgba(255,255,255,0.65); font-size: 13px; margin: 0 0 16px; }
+  .confirm-box .confirm-btns { display: flex; gap: 10px; justify-content: center; }
+  .confirm-box .confirm-btns button {
+    padding: 8px 20px; border-radius: 10px; border: none;
+    font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .confirm-btn-cancel { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); }
+  .confirm-btn-cancel:hover { background: rgba(255,255,255,0.12); }
+  .confirm-btn-delete { background: rgba(239,68,68,0.5); color: #fff; }
+  .confirm-btn-delete:hover { background: rgba(239,68,68,0.7); }
   .notes-history-preview {
     flex: 1; min-width: 0;
     color: rgba(255,255,255,0.55); font-size: 12px;
@@ -545,6 +589,17 @@
     </div>
     <div class="notes-history-list" id="notesHistoryList">
       <div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 删除确认弹窗 ═══ -->
+<div class="confirm-overlay hidden" id="confirmOverlay">
+  <div class="confirm-box">
+    <p id="confirmText">确定要删除该长期保留的便签吗？</p>
+    <div class="confirm-btns">
+      <button class="confirm-btn-cancel" onclick="closeConfirm()">取消</button>
+      <button class="confirm-btn-delete" id="confirmDeleteBtn" onclick="confirmDelete()">确认删除</button>
     </div>
   </div>
 </div>
@@ -980,7 +1035,7 @@ $searchIn.addEventListener('keydown', e => {
   if (e.key==='Enter') { clearTimeout(tranTimer); if (tranCtrl) { tranCtrl.abort(); tranCtrl=null; } doSearch(); }
 });
 document.addEventListener('keydown', e => {
-  if (!editDef && !editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement !== $searchIn) {
+  if (!editDef && !editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement !== $searchIn && !document.activeElement.closest('.note-body')) {
     const n = parseInt(e.key);
     if (n>=0 && n<=9 && n<defShortcuts.length) { e.preventDefault(); openUrl(defShortcuts[n].url); }
   }
@@ -1371,11 +1426,41 @@ function archiveNote(id) {
 }
 
 // Permanently delete from archive
+let pendingDeleteId = null;
+
 function deleteArchivedNote(id) {
+  const note = notesArchived.find(n => n.id === id);
+  // Long-term notes require confirmation
+  if (note && note.longTerm) {
+    pendingDeleteId = id;
+    document.getElementById('confirmText').textContent = '确定要删除该长期保留的便签吗？';
+    document.getElementById('confirmOverlay').classList.remove('hidden');
+    return;
+  }
   notesArchived = notesArchived.filter(n => n.id !== id);
   saveArchived();
   renderNotesHistory();
   toast('便签已永久删除');
+}
+
+function confirmDelete() {
+  if (pendingDeleteId === -1) {
+    const count = historySelected.size;
+    notesArchived = notesArchived.filter(n => !historySelected.has(n.id));
+    historySelected.clear();
+  } else if (pendingDeleteId) {
+    notesArchived = notesArchived.filter(n => n.id !== pendingDeleteId);
+  }
+  pendingDeleteId = null;
+  saveArchived();
+  renderNotesHistory();
+  document.getElementById('confirmOverlay').classList.add('hidden');
+  toast('便签已永久删除');
+}
+
+function closeConfirm() {
+  pendingDeleteId = null;
+  document.getElementById('confirmOverlay').classList.add('hidden');
 }
 
 // Restore from archive
@@ -1390,6 +1475,15 @@ function restoreNote(id) {
   renderNote(note);
   renderNotesHistory();
   toast('便签已恢复');
+}
+
+function toggleLongTerm(id) {
+  const note = notesArchived.find(n => n.id === id);
+  if (!note) return;
+  note.longTerm = !note.longTerm;
+  saveArchived();
+  renderNotesHistory();
+  toast(note.longTerm ? '已设为长期保留' : '已取消长期保留');
 }
 
 // History panel
@@ -1413,23 +1507,41 @@ function renderNotesHistory() {
   selectAllCheckbox.checked = false;
   updateBatchDelBtn();
 
-  list.innerHTML = notesArchived.map(n => {
-    const noteObj = { id: n.id, content: n.content || '' };
-    const displayName = generateNoteName(noteObj);
-    const rawText = n.content ? n.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
-    const date = n.updatedAt ? new Date(n.updatedAt).toLocaleString('zh-CN') : '';
-    return `
-      <div class="notes-history-item">
-        <input type="checkbox" class="history-item-check" data-id="${n.id}" onchange="onHistoryItemToggle(this)" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;flex-shrink:0">
-        <span class="note-archive-badge">#${n.id}</span>
-        <span class="notes-history-preview" title="${date + (rawText ? '\\n' + rawText.substring(0, 80) : '') }">${displayName}</span>
-        <span style="color:rgba(255,255,255,0.18);font-size:10px;flex-shrink:0">${date}</span>
-        <div class="notes-history-actions">
-          <button class="btn-history-restore" onclick="restoreNote(${n.id})" title="恢复">↩</button>
-          <button class="btn-history-delete" onclick="deleteArchivedNote(${n.id})" title="永久删除">×</button>
-        </div>
-      </div>`;
-  }).join('');
+  const longtermNotes = notesArchived.filter(n => n.longTerm);
+  const regularNotes = notesArchived.filter(n => !n.longTerm);
+
+  let htmlOut = '';
+
+  if (longtermNotes.length > 0) {
+    htmlOut += '<div class="notes-history-section-title longterm">◆ 长期保留</div>';
+    htmlOut += longtermNotes.map(n => renderHistoryItem(n)).join('');
+  }
+  if (regularNotes.length > 0) {
+    htmlOut += '<div class="notes-history-section-title">已归档的便签</div>';
+    htmlOut += regularNotes.map(n => renderHistoryItem(n)).join('');
+  }
+
+  list.innerHTML = htmlOut || '<div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>';
+}
+
+function renderHistoryItem(n) {
+  const noteObj = { id: n.id, content: n.content || '' };
+  const displayName = generateNoteName(noteObj);
+  const rawText = n.content ? n.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
+  const date = n.updatedAt ? new Date(n.updatedAt).toLocaleString('zh-CN') : '';
+  const isLT = n.longTerm;
+  return `
+    <div class="notes-history-item${isLT?' longterm':''}">
+      <input type="checkbox" class="history-item-check" data-id="${n.id}" onchange="onHistoryItemToggle(this)" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;flex-shrink:0">
+      <span class="note-archive-badge">#${n.id}</span>
+      <span class="notes-history-preview" title="${date + (rawText ? '\\n' + rawText.substring(0, 80) : '') }">${displayName}</span>
+      <span style="color:rgba(255,255,255,0.18);font-size:10px;flex-shrink:0">${date}</span>
+      <div class="notes-history-actions">
+        <button class="btn-history-longterm${isLT?' active':''}" onclick="toggleLongTerm(${n.id})" title="${isLT?'取消长期保留':'设为长期保留'}">${isLT?'长期':'长期'}</button>
+        <button class="btn-history-restore" onclick="restoreNote(${n.id})" title="恢复">↩</button>
+        <button class="btn-history-delete" onclick="deleteArchivedNote(${n.id})" title="永久删除">×</button>
+      </div>
+    </div>`;
 }
 
 function onHistoryItemToggle(checkbox) {
@@ -1457,6 +1569,13 @@ function toggleSelectAllNotes() {
 
 function batchDeleteNotes() {
   if (historySelected.size === 0) return;
+  const hasLongterm = notesArchived.some(n => historySelected.has(n.id) && n.longTerm);
+  if (hasLongterm) {
+    pendingDeleteId = -1;
+    document.getElementById('confirmText').textContent = `选中项中包含长期保留的便签，确认删除共 ${historySelected.size} 条记录？`;
+    document.getElementById('confirmOverlay').classList.remove('hidden');
+    return;
+  }
   const count = historySelected.size;
   notesArchived = notesArchived.filter(n => !historySelected.has(n.id));
   historySelected.clear();
@@ -1479,6 +1598,11 @@ function toggleNotesHistory() {
 // Close history on overlay click
 document.getElementById('notesHistoryOverlay').addEventListener('click', function(e) {
   if (e.target === this) toggleNotesHistory();
+});
+
+// Close confirm on overlay click
+document.getElementById('confirmOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeConfirm();
 });
 
 // Global mouse handlers for drag/resize
