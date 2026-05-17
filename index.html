@@ -47,15 +47,20 @@
     background: rgba(255,255,255,0.10);
     backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
     border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 22px;
+    border-radius: 16px;
     box-shadow: 0 4px 24px rgba(0,0,0,0.10);
     transition: all 0.35s ease;
-    width: 560px; max-width: 100%;
+    width: 620px; max-width: 100%;
+  }
+  .search-wrap:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 6px 28px rgba(0,0,0,0.15);
   }
   .search-wrap:focus-within {
-    background: rgba(255,255,255,0.17);
-    border-color: rgba(255,255,255,0.28);
-    box-shadow: 0 6px 36px rgba(0,0,0,0.18);
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.30);
+    box-shadow: 0 6px 36px rgba(0,0,0,0.22);
   }
   .search-input {
     background: transparent; border: none; outline: none;
@@ -92,11 +97,8 @@
   /* ── 时钟 ── */
   .clock {
     text-shadow: 0 2px 36px rgba(0,0,0,0.35);
-    cursor: pointer; user-select: none;
-    transition: transform 0.2s ease;
+    user-select: none;
   }
-  .clock:hover { transform: scale(1.03); }
-  .clock:active { transform: scale(0.97); }
 
   /* ── 默认底部捷径面板 ── */
   .sc-panel {
@@ -225,17 +227,155 @@
   .modal-input:focus { border-color: rgba(255,255,255,0.40); }
   .modal-input::placeholder { color: rgba(255,255,255,0.30); }
 
-  /* ── 提示 ── */
-  .clock-hint {
-    position: absolute; bottom: -26px; left: 50%; transform: translateX(-50%);
-    color: rgba(255,255,255,0.28); font-size: 10px;
-    white-space: nowrap; opacity: 0; pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-  .clock-wrap:hover .clock-hint { opacity: 1; }
-
   .editing .sc-add-wrap-custom { display: flex; }
   .sc-add-wrap-custom { display: none; justify-content: center; margin-top: 10px; }
+
+
+  /* ── 便签 ── */
+  .note-wrapper {
+    position: fixed; z-index: 200;
+    min-width: 240px; min-height: 160px;
+    border-radius: 14px;
+    background: rgba(25,30,48,0.94);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 8px 36px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+  }
+  .note-wrapper.front { z-index: 999; box-shadow: 0 14px 48px rgba(0,0,0,0.55); }
+  .note-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px 7px 14px; cursor: move; user-select: none;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.03);
+  }
+  .note-header span { font-size: 11px; color: rgba(255,255,255,0.35); }
+  .note-header button {
+    width: 24px; height: 24px; border-radius: 50%; border: none;
+    background: transparent; color: rgba(255,255,255,0.35);
+    cursor: pointer; font-size: 14px; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s;
+  }
+  .note-header button:hover { background: rgba(239,68,68,0.6); color: #fff; }
+  .note-body {
+    flex: 1; padding: 10px 14px; overflow-y: auto;
+    color: rgba(255,255,255,0.80); font-size: 13px;
+    outline: none; line-height: 1.7; min-height: 100px;
+    word-break: break-word;
+  }
+  .note-body img { max-width: 100%; border-radius: 8px; margin: 6px 0; display: block; }
+  .note-body:empty::before {
+    content: '输入内容，支持粘贴图片…'; color: rgba(255,255,255,0.18);
+  }
+  .note-resize {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 18px; height: 18px; cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.12) 50%);
+    border-radius: 0 0 10px 0;
+  }
+
+
+  /* ── 背景下拉菜单 ── */
+  .bg-dropdown {
+    position: absolute; top: 44px; right: 0; z-index: 60;
+    min-width: 150px;
+    background: rgba(22,30,50,0.96);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 6px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    animation: dropIn 0.18s ease;
+  }
+  @keyframes dropIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .bg-dropdown button {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 9px 12px; border: none; border-radius: 8px;
+    background: transparent; color: rgba(255,255,255,0.75);
+    font-size: 13px; cursor: pointer; font-family: inherit;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .bg-dropdown button:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+  /* ── 便签历史面板 ── */
+  .notes-history-overlay {
+    position: fixed; inset: 0; z-index: 150;
+    background: rgba(0,0,0,0.50);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .notes-history-overlay.show { opacity: 1; pointer-events: auto; }
+  .notes-history-box {
+    background: rgba(22,30,50,0.96);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px; padding: 24px 20px;
+    width: 520px; max-width: 92vw; max-height: 70vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  }
+  .notes-history-list {
+    flex: 1; overflow-y: auto; margin: 12px 0 8px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .notes-history-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.15s;
+  }
+  .notes-history-item:hover { background: rgba(255,255,255,0.08); }
+  .notes-history-preview {
+    flex: 1; min-width: 0;
+    color: rgba(255,255,255,0.55); font-size: 12px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .notes-history-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .notes-history-actions button {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; font-size: 12px;
+  }
+  .btn-history-restore {
+    background: rgba(34,197,94,0.15); color: rgba(34,197,94,0.85);
+  }
+  .btn-history-restore:hover { background: rgba(34,197,94,0.35); }
+  .btn-history-delete {
+    background: rgba(239,68,68,0.12); color: rgba(239,68,68,0.75);
+  }
+  .btn-history-delete:hover { background: rgba(239,68,68,0.35); }
+  .note-archive-badge {
+    font-size: 10px; color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.04); padding: 2px 8px;
+    border-radius: 10px; flex-shrink: 0;
+  }
+
+
+  /* ── 便签内文件/图片删除按钮 ── */
+  .note-img-wrap {
+    position: relative; display: inline-block; max-width: 100%;
+  }
+  .note-img-wrap img {
+    max-width: 100%; border-radius: 8px; margin: 4px 0; display: block;
+  }
+  .note-file-wrap {
+    position: relative; display: inline-block; max-width: 100%;
+  }
+  .note-item-del {
+    position: absolute; top: -4px; right: -4px;
+    width: 20px; height: 20px; border-radius: 50%;
+    border: none; background: rgba(239,68,68,0.82); color: #fff;
+    font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1; opacity: 0; transition: opacity 0.15s;
+    z-index: 5; padding: 0;
+  }
+  .note-img-wrap:hover .note-item-del,
+  .note-file-wrap:hover .note-item-del { opacity: 1; }
 
   ::-webkit-scrollbar { width: 0; }
 </style>
@@ -249,15 +389,36 @@
 
 <!-- ═══ 顶部操作 ═══ -->
 <div class="fixed top-0 left-0 right-0 z-30 flex justify-end items-center gap-1 px-4 py-3">
-  <button class="ico-btn group relative" onclick="document.getElementById('bgUpload').click()" title="更换背景">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><path d="M21 15l-5-5L5 21"/></svg>
-    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">换背景</span>
-  </button>
+  <!-- 换背景下拉菜单 -->
+  <div class="relative inline-block" id="bgMenuWrap">
+    <button class="ico-btn group relative" onclick="toggleBgMenu()" title="更换背景">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><path d="M21 15l-5-5L5 21"/></svg>
+      <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">换背景</span>
+    </button>
+    <div class="bg-dropdown hidden" id="bgDropdown">
+      <button onclick="document.getElementById('bgUpload').click();toggleBgMenu()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><path d="M21 15l-5-5L5 21"/></svg>
+        本地图片
+      </button>
+      <button onclick="switchToBing();toggleBgMenu()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M6 16c2-4 5-6 8-3l4-5c2-2 4-1 4 1v9H6z"/><circle cx="9" cy="9" r="2" fill="currentColor" stroke="none"/></svg>
+        必应壁纸
+      </button>
+    </div>
+  </div>
   <button class="ico-btn" onclick="resetBg()" title="重置背景">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2.1-8.7L1 10"/></svg>
   </button>
   <button class="ico-btn" id="btnEditDef" onclick="toggleEditDef()" title="编辑默认捷径">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
+  </button>
+
+  <button class="ico-btn group relative" onclick="createNote()" title="新建便签">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="16" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
+  </button>
+
+  <button class="ico-btn group relative" onclick="toggleNotesHistory()" id="btnNotesHistory" title="便签历史">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
   </button>
 </div>
 <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
@@ -266,18 +427,15 @@
 <div class="relative z-10 flex flex-col items-center w-full px-5" style="padding-top: 15vh;">
 
   <!-- 时钟 -->
-  <div class="clock-wrap relative inline-block" title="点击打开自定义捷径面板">
-    <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-1 select-none" id="timeDisplay" onclick="openCustomPanel()">00:00</div>
-    <span class="clock-hint">点击管理自定义捷径</span>
-  </div>
+  <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-1 select-none cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-transform" id="timeDisplay" onclick="openCustomPanel()" title="点击打开自定义捷径面板">00:00</div>
   <div class="text-white/60 text-sm tracking-[0.16em] mb-10 select-none" id="dateDisplay"></div>
 
   <!-- ═══ 搜索框 ═══ -->
-  <div class="search-wrap flex items-center gap-2 pl-4 pr-3 py-2.5 mx-auto" id="searchBox">
+  <div class="search-wrap flex items-center gap-2 pl-4 pr-3 py-1.5 mx-auto" id="searchBox">
     <!-- 百度熊掌 / Google G -->
     <div class="engine-icon" id="engineIcon" onclick="toggleEngine()" title="点击切换搜索引擎">
-      <img id="imgBaidu" src="data:image/png;base64,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" alt="百度" style="width:28px;height:28px;object-fit:contain">
-      <img id="imgGoogle" src="data:image/png;base64,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" alt="Google" class="hidden" style="width:28px;height:28px;object-fit:contain">
+      <img id="imgBaidu" src="data:image/png;base64,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" alt="百度" style="width:28px;height:28px;object-fit:contain">
+      <img id="imgGoogle" src="data:image/png;base64,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" alt="Google" class="hidden" style="width:28px;height:28px;object-fit:contain">
     </div>
     <input type="text" class="search-input" id="searchInput"
            placeholder="搜索" autocomplete="off" spellcheck="false">
@@ -362,6 +520,24 @@
   bg-white/10 backdrop-blur-lg text-white text-xs px-4 py-2 rounded-full
   opacity-0 transition-opacity duration-300 pointer-events-none"></div>
 
+<!-- ═══ 便签容器 ═══ -->
+<div id="notesContainer"></div>
+
+<!-- ═══ 便签历史面板 ═══ -->
+<div class="notes-history-overlay" id="notesHistoryOverlay">
+  <div class="notes-history-box">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-white text-base font-medium">已归档的便签</h3>
+      <button class="ico-btn" onclick="toggleNotesHistory()" title="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="notes-history-list" id="notesHistoryList">
+      <div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============ DOM ============
 const $bgDef       = document.getElementById('bgDefault');
@@ -414,32 +590,155 @@ const DEF_SC = [
 ];
 
 // ============ 背景 ============
-function initBg() {
-  const s = localStorage.getItem('sp_bg');
-  s ? showBg(s) : showDefBg();
+let bgMode = 'bing'; // 'bing' | 'custom' | 'default'
+const BING_MIRROR = 'https://api.dujin.org/bing/1920.php';
+
+async function initBg() {
+  const mode = localStorage.getItem('sp_bg_mode') || 'bing';
+  bgMode = mode;
+  if (mode === 'custom') {
+    const s = localStorage.getItem('sp_bg');
+    if (s) { showBg(s, false); return; }
+    // custom mode set but data lost → fallback to bing
+    localStorage.setItem('sp_bg_mode', 'bing'); bgMode = 'bing';
+  }
+  if (mode === 'bing') {
+    applyBingBg(); return;
+  }
+  showDefBg();
 }
-function showBg(url) {
+
+function applyBingBg() {
+  // CSS background-image loads cross-origin without CORS issues
+  showBg(BING_MIRROR, true);
+  const today = new Date().toDateString();
+  localStorage.setItem('sp_bing_date', today);
+}
+
+async function fetchBing() {
+  // Verify the mirror is reachable via Image preload
+  // (CSS background will load it anyway, but we confirm first)
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => {
+      img.src = '';
+      resolve(false);
+    }, 8000);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      // Try cn.bing.com direct as fallback
+      const img2 = new Image();
+      const timer2 = setTimeout(() => { img2.src = ''; resolve(false); }, 8000);
+      img2.onload = () => { clearTimeout(timer2); resolve(true); };
+      img2.onerror = () => { clearTimeout(timer2); resolve(false); };
+      img2.src = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1';
+    };
+    img.src = BING_MIRROR;
+  });
+}
+
+function showBg(url, isBing) {
   $bgDef.style.display = 'none';
   $bgImg.style.display = 'block';
   $bgImg.style.backgroundImage = `url(${url})`;
 }
+
 function showDefBg() {
   $bgImg.style.display = 'none';
   $bgDef.style.display = 'block';
   $bgImg.style.backgroundImage = '';
-  localStorage.removeItem('sp_bg');
 }
+
+function compressImage(dataUri, maxW, quality, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    let w = img.naturalWidth, h = img.naturalHeight;
+    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const compressed = canvas.toDataURL('image/jpeg', quality);
+    callback(compressed);
+  };
+  img.onerror = () => callback(null);
+  img.src = dataUri;
+}
+
 function handleBgUpload(e) {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
   r.onload = ev => {
-    try { localStorage.setItem('sp_bg', ev.target.result); } catch(_) { localStorage.removeItem('sp_bg'); }
-    showBg(ev.target.result); toast('背景已更新');
+    const rawUri = ev.target.result;
+    bgMode = 'custom';
+    localStorage.setItem('sp_bg_mode', 'custom');
+
+    // First try to save compressed version (resize to 1920px, JPEG Q=0.7)
+    compressImage(rawUri, 1920, 0.7, (compressed) => {
+      if (compressed) {
+        try {
+          localStorage.setItem('sp_bg', compressed);
+          showBg(compressed, false);
+          toast('背景已更新');
+          return;
+        } catch(_) {}
+      }
+      // Compression failed or still too large → try lower quality
+      compressImage(rawUri, 1600, 0.5, (compressed2) => {
+        if (compressed2) {
+          try {
+            localStorage.setItem('sp_bg', compressed2);
+            showBg(compressed2, false);
+            toast('背景已更新（高压缩）');
+            return;
+          } catch(_) {}
+        }
+        // All failed → just show without persistence
+        showBg(rawUri, false);
+        toast('图片过大无法持久化，仅本次有效');
+      });
+    });
   };
   r.readAsDataURL(f); e.target.value = '';
 }
-function resetBg() { showDefBg(); toast('已恢复默认背景'); }
 
+function toggleBgMenu() {
+  const dd = document.getElementById('bgDropdown');
+  dd.classList.toggle('hidden');
+  if (!dd.classList.contains('hidden')) {
+    setTimeout(() => {
+      document.addEventListener('click', function closeBgMenu(e) {
+        const wrap = document.getElementById('bgMenuWrap');
+        if (!wrap.contains(e.target)) {
+          dd.classList.add('hidden');
+          document.removeEventListener('click', closeBgMenu);
+        }
+      });
+    }, 0);
+  }
+}
+
+function switchToBing() {
+  bgMode = 'bing';
+  localStorage.setItem('sp_bg_mode', 'bing');
+  localStorage.removeItem('sp_bg');
+  applyBingBg();
+  toast('已切换为必应壁纸');
+}
+
+function resetBg() {
+  bgMode = 'bing';
+  localStorage.setItem('sp_bg_mode', 'bing');
+  localStorage.removeItem('sp_bg');
+  localStorage.removeItem('sp_bing_url');
+  localStorage.removeItem('sp_bing_date');
+  applyBingBg();
+  toast('已恢复必应壁纸');
+}
 // ============ 背景模糊 + 缩放 ============
 $searchIn.addEventListener('focus', () => { $bgBlur.classList.add('on'); $bgImg.classList.add('zoomed'); });
 $searchIn.addEventListener('blur', () => {
@@ -689,8 +988,381 @@ $customOverlay.addEventListener('click', function(e) {
   if (e.target === $customOverlay) closeCustomPanel();
 });
 
+
+// ============ 便签功能 ============
+let notes = [];
+let notesArchived = [];
+let noteIdCounter = 0;
+let noteZ = 200;
+let dragState = null;
+
+function loadNotes() {
+  try { const r = localStorage.getItem('sp_notes'); notes = r ? JSON.parse(r) : []; }
+  catch(_) { notes = []; }
+  try { const r = localStorage.getItem('sp_notes_archived'); notesArchived = r ? JSON.parse(r) : []; }
+  catch(_) { notesArchived = []; }
+  const allIds = [...notes, ...notesArchived].map(n => n.id||0);
+  noteIdCounter = allIds.length ? Math.max(...allIds) : 0;
+  // Only render active (non-archived) notes
+  renderAllNotes();
+}
+
+function saveNotes() {
+  // Sync DOM state into notes array
+  document.querySelectorAll('.note-wrapper').forEach(el => {
+    const id = parseInt(el.dataset.noteId);
+    const body = el.querySelector('.note-body');
+    const note = notes.find(n => n.id === id);
+    if (note && body) note.content = body.innerHTML;
+  });
+  try { localStorage.setItem('sp_notes', JSON.stringify(notes)); } catch(_) {
+    // QuotaExceeded - try cleaning up
+    toast('存储空间不足，请清理部分便签');
+  }
+}
+function saveArchived() {
+  try { localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived)); } catch(_) {}
+}
+
+function createNote(x, y) {
+  noteIdCounter++;
+  const note = {
+    id: noteIdCounter,
+    x: x || 100 + Math.random() * 300,
+    y: y || 80 + Math.random() * 300,
+    w: 280, h: 220,
+    content: '',
+    updatedAt: Date.now()
+  };
+  notes.push(note);
+  renderNote(note);
+  saveNotes();
+  toast('便签已创建');
+}
+
+function renderNote(note) {
+  const el = document.createElement('div');
+  el.className = 'note-wrapper';
+  el.dataset.noteId = note.id;
+  el.style.left = note.x + 'px';
+  el.style.top = note.y + 'px';
+  el.style.width = note.w + 'px';
+  el.style.height = note.h + 'px';
+  el.style.zIndex = noteZ++;
+  el.innerHTML = `
+    <div class="note-header" data-action="drag">
+      <span>便签 ${note.id}</span>
+      <button data-action="close" title="归档（可从历史恢复）">×</button>
+    </div>
+    <div class="note-body" contenteditable="true" spellcheck="false">${note.content}</div>
+    <div class="note-resize" data-action="resize"></div>
+  `;
+
+  const header = el.querySelector('.note-header');
+  const body = el.querySelector('.note-body');
+  const resize = el.querySelector('.note-resize');
+  const closeBtn = el.querySelector('[data-action="close"]');
+
+  // Bring to front on click
+  el.addEventListener('mousedown', () => {
+    el.style.zIndex = ++noteZ;
+    el.classList.add('front');
+    document.querySelectorAll('.note-wrapper').forEach(o => {
+      if (o !== el) o.classList.remove('front');
+    });
+  });
+
+  // Drag
+  header.addEventListener('mousedown', e => {
+    if (e.target.dataset.action === 'close') return;
+    e.preventDefault();
+    dragState = { el, type:'drag', sx:e.clientX, sy:e.clientY, ox:el.offsetLeft, oy:el.offsetTop };
+  });
+
+  // Resize
+  resize.addEventListener('mousedown', e => {
+    e.preventDefault(); e.stopPropagation();
+    dragState = { el, type:'resize', sx:e.clientX, sy:e.clientY, ow:el.offsetWidth, oh:el.offsetHeight };
+  });
+
+  // Close → archive (soft delete)
+  closeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    archiveNote(note.id);
+  });
+
+  // Content change → auto save
+  let saveTimeout;
+  body.addEventListener('input', () => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveNotes, 600);
+  });
+  body.addEventListener('blur', saveNotes);
+
+  // Paste handler: images → base64, files → data URI links
+  body.addEventListener('paste', e => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = ev => {
+          document.execCommand('insertHTML', false, `<span class="note-img-wrap"><img src="${ev.target.result}" alt="pasted" draggable="true"><button class="note-item-del">×</button></span>`);
+          saveNotes();
+        };
+        reader.readAsDataURL(blob);
+        return;
+      }
+    }
+    // For text/plain content, let default paste handle it
+    // For non-image files from clipboard, create data URI
+    for (const item of items) {
+      if (item.kind === 'file' && !item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const dataUri = ev.target.result;
+          const fileName = blob.name || 'file';
+          const sizeStr = blob.size < 1024 ? blob.size+'B'
+            : blob.size < 1048576 ? (blob.size/1024).toFixed(1)+'KB'
+            : (blob.size/1048576).toFixed(1)+'MB';
+          const html = `<span class="note-file-wrap"><div class="file-attach" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,0.06);border-radius:8px;margin:3px 0;font-size:12px;color:rgba(255,255,255,0.6);max-width:100%" draggable="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12" style="flex-shrink:0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <a href="${dataUri}" download="${fileName}" style="color:rgba(255,255,255,0.7);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none">${fileName}</a>
+            <span style="opacity:0.4;flex-shrink:0">${sizeStr}</span>
+          </div><button class="note-item-del">×</button></span>`;
+          document.execCommand('insertHTML', false, html);
+          saveNotes();
+        };
+        reader.readAsDataURL(blob);
+        return;
+      }
+    }
+  });
+
+  // ── External drag-and-drop support ──
+  body.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    body.style.background = 'rgba(99,102,241,0.12)';
+  });
+  body.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    body.style.background = '';
+  });
+  body.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    body.style.background = '';
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    body.focus();
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const dataUri = ev.target.result;
+        if (file.type.startsWith('image/')) {
+          document.execCommand('insertHTML', false, `<span class="note-img-wrap"><img src="${dataUri}" alt="${file.name}" draggable="true"><button class="note-item-del">×</button></span>`);
+        } else {
+          const sizeStr = file.size < 1024 ? file.size+'B'
+            : file.size < 1048576 ? (file.size/1024).toFixed(1)+'KB'
+            : (file.size/1048576).toFixed(1)+'MB';
+          const html = `<span class="note-file-wrap"><div class="file-attach" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,0.06);border-radius:8px;margin:3px 0;font-size:12px;color:rgba(255,255,255,0.6);max-width:100%" draggable="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12" style="flex-shrink:0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <a href="${dataUri}" download="${file.name}" style="color:rgba(255,255,255,0.7);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none">${file.name}</a>
+            <span style="opacity:0.4;flex-shrink:0">${sizeStr}</span>
+          </div><button class="note-item-del">×</button></span>`;
+          document.execCommand('insertHTML', false, html);
+        }
+        saveNotes();
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  // ── Delete button for images/files in notes ──
+  body.addEventListener('click', e => {
+    if (e.target.classList.contains('note-item-del')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrap = e.target.closest('.note-img-wrap') || e.target.closest('.note-file-wrap');
+      if (wrap) { wrap.remove(); saveNotes(); }
+    }
+  });
+
+  // ── Drag-out support: drag images/files from note to desktop ──
+  body.addEventListener('dragstart', e => {
+    const img = e.target.closest('.note-img-wrap img') || e.target.closest('img');
+    const fileAttach = e.target.closest('.note-file-wrap .file-attach') || e.target.closest('.file-attach');
+
+    let dataUri, fileName;
+
+    if (img && img.src && img.src.startsWith('data:')) {
+      dataUri = img.src;
+      fileName = img.alt || 'image.png';
+      // Derive extension from MIME type in data URI
+      const mimeMatch = dataUri.match(/^data:([^;]+)/);
+      if (mimeMatch) {
+        const ext = mimeMatch[1].split('/')[1] || 'png';
+        if (!fileName.includes('.')) fileName += '.' + ext;
+      }
+    } else if (fileAttach) {
+      const link = fileAttach.querySelector('a');
+      if (link && link.href && link.href.startsWith('data:')) {
+        dataUri = link.href;
+        fileName = link.getAttribute('download') || link.textContent || 'file';
+      }
+    }
+
+    if (dataUri) {
+      // Convert data URI to Blob for native file drag
+      const parts = dataUri.split(',');
+      const mime = (parts[0].match(/:(.+);/) || [])[1] || 'application/octet-stream';
+      const binary = atob(parts[1]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      e.dataTransfer.setData('DownloadURL', mime + ':' + fileName + ':' + dataUri);
+      e.dataTransfer.setData('text/plain', fileName);
+      e.dataTransfer.effectAllowed = 'copy';
+      // For browsers that support files in drag (Chrome)
+      try {
+        const file = new File([blob], fileName, { type: mime });
+        e.dataTransfer.items.add(file);
+      } catch(_) {
+        // Fallback: use DownloadURL (works in Chrome)
+      }
+    }
+  });
+
+  document.getElementById('notesContainer').appendChild(el);
+}
+
+function renderAllNotes() {
+  const container = document.getElementById('notesContainer');
+  container.innerHTML = '';
+  notes.forEach(n => renderNote(n));
+}
+
+// Soft-delete: archive instead of remove
+function archiveNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  // Sync latest DOM content before archiving
+  const el = document.querySelector(`.note-wrapper[data-note-id="${id}"]`);
+  if (el) {
+    const body = el.querySelector('.note-body');
+    if (body) note.content = body.innerHTML;
+    el.remove();
+  }
+  note.updatedAt = Date.now();
+  notes = notes.filter(n => n.id !== id);
+  notesArchived.push(note);
+  saveNotes();
+  saveArchived();
+  toast('便签已归档（可从历史恢复）');
+}
+
+// Permanently delete from archive
+function deleteArchivedNote(id) {
+  notesArchived = notesArchived.filter(n => n.id !== id);
+  saveArchived();
+  renderNotesHistory();
+  toast('便签已永久删除');
+}
+
+// Restore from archive
+function restoreNote(id) {
+  const note = notesArchived.find(n => n.id === id);
+  if (!note) return;
+  note.updatedAt = Date.now();
+  notesArchived = notesArchived.filter(n => n.id !== id);
+  notes.push(note);
+  saveNotes();
+  saveArchived();
+  renderNote(note);
+  renderNotesHistory();
+  toast('便签已恢复');
+}
+
+// History panel
+function renderNotesHistory() {
+  const list = document.getElementById('notesHistoryList');
+  if (notesArchived.length === 0) {
+    list.innerHTML = '<div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>';
+    return;
+  }
+  list.innerHTML = notesArchived.map(n => {
+    const text = n.content ? n.content.replace(/<[^>]*>/g, '').substring(0, 80) : '空便签';
+    const date = n.updatedAt ? new Date(n.updatedAt).toLocaleString('zh-CN') : '';
+    return `
+      <div class="notes-history-item">
+        <span class="note-archive-badge">#${n.id}</span>
+        <span class="notes-history-preview" title="${date}">${text || '空便签'}</span>
+        <span style="color:rgba(255,255,255,0.18);font-size:10px;flex-shrink:0">${date}</span>
+        <div class="notes-history-actions">
+          <button class="btn-history-restore" onclick="restoreNote(${n.id})" title="恢复">↩</button>
+          <button class="btn-history-delete" onclick="deleteArchivedNote(${n.id})" title="永久删除">×</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleNotesHistory() {
+  const overlay = document.getElementById('notesHistoryOverlay');
+  const isOpen = overlay.classList.contains('show');
+  if (isOpen) {
+    overlay.classList.remove('show');
+  } else {
+    renderNotesHistory();
+    overlay.classList.add('show');
+  }
+}
+
+// Close history on overlay click
+document.getElementById('notesHistoryOverlay').addEventListener('click', function(e) {
+  if (e.target === this) toggleNotesHistory();
+});
+
+// Global mouse handlers for drag/resize
+document.addEventListener('mousemove', e => {
+  if (!dragState) return;
+  const { el, type, sx, sy, ox, oy, ow, oh } = dragState;
+  if (type === 'drag') {
+    const nx = Math.max(0, Math.min(window.innerWidth - 80, ox + (e.clientX - sx)));
+    const ny = Math.max(0, Math.min(window.innerHeight - 40, oy + (e.clientY - sy)));
+    el.style.left = nx + 'px';
+    el.style.top = ny + 'px';
+  } else if (type === 'resize') {
+    const nw = Math.max(200, ow + (e.clientX - sx));
+    const nh = Math.max(140, oh + (e.clientY - sy));
+    el.style.width = nw + 'px';
+    el.style.height = nh + 'px';
+  }
+});
+document.addEventListener('mouseup', () => {
+  if (!dragState) return;
+  const { el } = dragState;
+  const id = parseInt(el.dataset.noteId);
+  const note = notes.find(n => n.id === id);
+  if (note) {
+    note.x = el.offsetLeft;
+    note.y = el.offsetTop;
+    note.w = el.offsetWidth;
+    note.h = el.offsetHeight;
+  }
+  dragState = null;
+  saveNotes();
+});
+
 // ============ 初始化 ============
-initBg(); loadDefSC(); loadCustomSC(); renderDefSC(); tick();
+initBg(); loadDefSC(); loadCustomSC(); renderDefSC(); loadNotes(); tick();
 setInterval(tick, 1000);
 </script>
 </body>
