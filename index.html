@@ -1194,8 +1194,7 @@ function saveNotes() {
   try { localStorage.setItem('sp_notes', JSON.stringify(notes)); } catch(_) {
     toast('存储空间不足，请清理部分便签');
   }
-  // Push to cloud
-  pushToCloud();
+  // 活跃便签不同步到云端，仅本地保存
 }
 function saveArchived() {
   try { localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived)); } catch(_) {}
@@ -1803,19 +1802,17 @@ async function subscribeToChanges() {
 function applyRemoteData(remoteData, rowId) {
   if (!remoteData) return;
   try {
-    const { activeNotes, archivedNotes } = remoteData;
-    if (activeNotes) {
-      notes = activeNotes;
-      const allIds = [...notes, ...notesArchived].map(n => n.id||0);
-      noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
-      localStorage.setItem('sp_notes', JSON.stringify(notes));
-      renderAllNotes();
-    }
+    // 仅处理已归档的便签同步，不覆盖本地的活跃便签
+    const { archivedNotes } = remoteData;
     if (archivedNotes) {
       notesArchived = archivedNotes;
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
       localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived));
+      // 刷新历史面板（如果当前已打开）
+      if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
+        renderNotesHistory();
+      }
     }
   } catch(e) { console.log('Apply remote data failed:', e); }
 }
@@ -1826,9 +1823,9 @@ async function pushToCloud() {
   syncPending = true;
   try {
     // Upsert: one row per sync_code, storing all notes as JSON
+    // 仅同步已归档的便签（含长期保留），活跃便签不同步
     const payload = {
       data: {
-        activeNotes: notes,
         archivedNotes: notesArchived
       }
     };
@@ -1863,22 +1860,22 @@ async function pullFromCloud() {
 
     if (data && data.length > 0 && data[0].data) {
       const remote = data[0].data;
-      const remoteActive = remote.activeNotes || [];
       const remoteArchived = remote.archivedNotes || [];
-      // Merge: remote wins for same note ID, local adds new
+      // 仅合并已归档便签：远程同 ID 覆盖本地，本地新增保留
       const merge = (localArr, remoteArr) => {
         const map = new Map();
         localArr.forEach(n => map.set(n.id, n));
         remoteArr.forEach(n => map.set(n.id, n));
         return Array.from(map.values()).sort((a, b) => a.id - b.id);
       };
-      notes = merge(notes, remoteActive);
       notesArchived = merge(notesArchived, remoteArchived);
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
-      localStorage.setItem('sp_notes', JSON.stringify(notes));
       localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived));
-      renderAllNotes();
+      // 刷新历史面板（如果当前已打开）
+      if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
+        renderNotesHistory();
+      }
       // Push merged result back
       pushToCloud();
     }
