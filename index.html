@@ -808,9 +808,9 @@
       <div class="sync-qr-wrap" id="syncQrWrap"></div>
       <p class="text-white/20 text-[10px] text-center mt-1">其他设备输入上方同步码或扫描二维码加入</p>
       <div class="flex justify-center gap-3 mt-4">
-        <button onclick="manualSync()"
+        <button id="btnManualSync" onclick="manualSync()"
           style="padding:8px 20px;border-radius:20px;border:1px solid rgba(99,102,241,0.3);background:transparent;color:rgba(99,102,241,0.7);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s"
-          onmouseenter="this.style.background='rgba(99,102,241,0.15)'" onmouseleave="this.style.background='transparent'">手动同步</button>
+          onmouseenter="if(!this.disabled)this.style.background='rgba(99,102,241,0.15)'" onmouseleave="this.style.background='transparent'">手动同步</button>
         <button onclick="disconnectSync()"
           style="padding:8px 20px;border-radius:20px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:rgba(239,68,68,0.7);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s"
           onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">断开同步</button>
@@ -2068,6 +2068,7 @@ let supabaseClient = null;
 let syncCode = '';
 let syncChannel = null;
 let syncPending = false;
+let syncRetry = false;
 
 const SUPABASE_URL = 'https://lsqjeqknwqlkwfqdofyc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_6lSjxD8oKLdzyTtxaJ39wA_SDpaM3aC';
@@ -2129,17 +2130,14 @@ function applyRemoteData(remoteData, rowId) {
 
 async function pushToCloud() {
   if (!supabaseClient || !syncCode) return;
-  if (syncPending) return;
+  // 若正在推送中，标记需要重试，确保最新数据不丢失
+  if (syncPending) { syncRetry = true; return; }
   syncPending = true;
+  syncRetry = false;
   try {
-    // Upsert: one row per sync_code, storing all notes as JSON
-    // 仅同步已归档的便签（含长期保留），活跃便签不同步
-    const payload = {
-      data: {
-        archivedNotes: notesArchived
-      }
-    };
-    // Check if row exists
+    // 快照当前 notesArchived，避免推送过程中被修改
+    const snapshot = JSON.parse(JSON.stringify(notesArchived));
+    const payload = { data: { archivedNotes: snapshot } };
     const { data: existing } = await supabaseClient
       .from('notes_sync')
       .select('id')
@@ -2156,6 +2154,8 @@ async function pushToCloud() {
     }
   } catch(e) { console.log('Push to cloud failed:', e); }
   syncPending = false;
+  // 如果期间有新的归档请求，立即重推最新数据
+  if (syncRetry) { syncRetry = false; pushToCloud(); }
 }
 
 async function pullFromCloud() {
@@ -2241,18 +2241,30 @@ function closeSyncPanel() {
 
 async function manualSync() {
   if (!supabaseClient || !syncCode) { toast('请先生成或加入同步码'); return; }
-  toast('正在同步…');
-  // 先推送本地数据，再拉取远程数据
-  await pushToCloud();
-  const result = await pullFromCloud();
-  if (result === false) {
-    toast('同步失败，请检查网络');
-  } else if (result === true || result === 0) {
-    toast('同步完成，已是最新');
-  } else {
-    toast(`同步完成，获取了 ${result} 条新便签`);
+  const btn = document.getElementById('btnManualSync');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = '同步中…';
+  btn.style.opacity = '0.6';
+  try {
+    // 先推送本地数据，再拉取远程数据
+    await pushToCloud();
+    // 等待重试队列清空
+    await new Promise(r => setTimeout(r, 300));
+    const result = await pullFromCloud();
+    if (result === false) {
+      toast('同步失败，请检查网络');
+    } else if (result === true || result === 0) {
+      toast('同步完成，已是最新');
+    } else {
+      toast(`同步完成，获取了 ${result} 条新便签`);
+    }
+    closeSyncPanel();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '手动同步';
+    btn.style.opacity = '1';
   }
-  closeSyncPanel();
 }
 
 // ═══ 自动同步 ═══
