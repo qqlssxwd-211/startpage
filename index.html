@@ -492,22 +492,23 @@
       </button>
     </div>
   </div>
-  <button class="ico-btn" onclick="resetBg()" title="重置背景">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2.1-8.7L1 10"/></svg>
-  </button>
-  <button class="ico-btn" id="btnEditDef" onclick="toggleEditDef()" title="编辑默认捷径">
+  <button class="ico-btn group relative" id="btnEditDef" onclick="toggleEditDef()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
+    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">编辑捷径</span>
   </button>
 
-  <button class="ico-btn group relative" id="btnSync" onclick="toggleSyncPanel()" title="云端同步">
+  <button class="ico-btn group relative" id="btnSync" onclick="toggleSyncPanel()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">云端同步</span>
   </button>
-  <button class="ico-btn group relative" onclick="createNote()" title="新建便签">
+  <button class="ico-btn group relative" onclick="createNote()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="16" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
+    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">新建便签</span>
   </button>
 
-  <button class="ico-btn group relative" onclick="toggleNotesHistory()" id="btnNotesHistory" title="便签历史">
+  <button class="ico-btn group relative" onclick="toggleNotesHistory()" id="btnNotesHistory">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">便签历史</span>
   </button>
 </div>
 <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
@@ -899,15 +900,6 @@ function switchToBing() {
   toast('已切换为必应壁纸');
 }
 
-function resetBg() {
-  bgMode = 'bing';
-  localStorage.setItem('sp_bg_mode', 'bing');
-  localStorage.removeItem('sp_bg');
-  localStorage.removeItem('sp_bing_url');
-  localStorage.removeItem('sp_bing_date');
-  applyBingBg();
-  toast('已恢复必应壁纸');
-}
 // ============ 背景模糊 + 缩放 ============
 $searchIn.addEventListener('focus', () => { $bgBlur.classList.add('on'); $bgImg.classList.add('zoomed'); });
 $searchIn.addEventListener('blur', () => {
@@ -916,6 +908,13 @@ $searchIn.addEventListener('blur', () => {
       $bgBlur.classList.remove('on'); $bgImg.classList.remove('zoomed');
     }
   }, 200);
+});
+
+// 双击背景新建便签
+document.addEventListener('dblclick', e => {
+  if (e.target === $bgImg || e.target === $bgDef || e.target === $bgBlur || e.target === document.body) {
+    createNote(e.clientX, e.clientY);
+  }
 });
 
 // ============ 时钟 ============
@@ -1043,10 +1042,14 @@ function renderDefSC() {
     </div>
   `).join('');
   $scPanel.classList.toggle('editing', editDef);
-  $btnEditDef.innerHTML = editDef
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>';
-  $btnEditDef.title = editDef ? '完成编辑' : '编辑默认捷径';
+  const svgEl = $btnEditDef.querySelector('svg');
+  if (svgEl) {
+    svgEl.outerHTML = editDef
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>';
+  }
+  const tooltip = $btnEditDef.querySelector('span');
+  if (tooltip) tooltip.textContent = editDef ? '完成编辑' : '编辑捷径';
 }
 function toggleEditDef() { editDef = !editDef; renderDefSC(); }
 function openEditDef(i) {
@@ -1344,9 +1347,10 @@ function renderNote(note) {
       if (item.type.startsWith('image/')) {
         e.preventDefault();
         const blob = item.getAsFile();
+        const fileName = blob.name || 'pasted';
         const reader = new FileReader();
         reader.onload = ev => {
-          document.execCommand('insertHTML', false, `<span class="note-img-wrap"><img src="${ev.target.result}" alt="pasted" draggable="true"><button class="note-item-del">×</button></span>`);
+          document.execCommand('insertHTML', false, `<span class="note-img-wrap"><img src="${ev.target.result}" alt="${fileName}" draggable="true"><button class="note-item-del">×</button></span>`);
           saveNotes();
           updateNoteTitle(note.id);
         };
@@ -1529,7 +1533,7 @@ function archiveNote(id) {
 
   note.updatedAt = Date.now();
   notes = notes.filter(n => n.id !== id);
-  notesArchived.push(note);
+  notesArchived.unshift(note);
   saveNotes();
   saveArchived();
 }
@@ -1782,7 +1786,7 @@ function initSupabase() {
 
 async function subscribeToChanges() {
   if (!supabaseClient || syncChannel) return;
-  syncChannel = supabase
+  syncChannel = supabaseClient
     .channel('notes-changes')
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'notes_sync', filter: `sync_code=eq.${syncCode}` },
@@ -1829,7 +1833,7 @@ async function pushToCloud() {
       }
     };
     // Check if row exists
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseClient
       .from('notes_sync')
       .select('id')
       .eq('sync_code', syncCode)
@@ -1850,7 +1854,7 @@ async function pushToCloud() {
 async function pullFromCloud() {
   if (!supabaseClient || !syncCode) return;
   try {
-    const { data } = await supabase
+    const { data } = await supabaseClient
       .from('notes_sync')
       .select('data')
       .eq('sync_code', syncCode)
@@ -1971,7 +1975,7 @@ function disconnectSync() {
   syncCode = '';
   localStorage.removeItem('sp_sync_code');
   if (syncChannel) { supabaseClient.removeChannel(syncChannel); syncChannel = null; }
-  supabase = null;
+  supabaseClient = null;
   updateSyncUI();
   toast('已断开同步');
 }
