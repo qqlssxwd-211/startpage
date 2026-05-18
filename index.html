@@ -477,6 +477,13 @@
   .note-file-wrap:hover .note-item-down,
   .note-file-wrap:hover .note-item-del { opacity: 1; }
 
+  /* 触摸设备上始终显示下载/删除按钮 */
+  @media (hover: none) and (pointer: coarse) {
+    .note-item-down, .note-item-del { opacity: 1 !important; }
+    .note-item-down { width: 28px; height: 28px; font-size: 14px; right: 26px; top: -6px; }
+    .note-item-del { width: 28px; height: 28px; font-size: 14px; top: -6px; right: -6px; }
+  }
+
   ::-webkit-scrollbar { width: 0; }
 
   /* ═══ 移动端适配 ═══ */
@@ -513,13 +520,14 @@
       left: 8px !important; right: 8px;
       max-height: 55vh;
     }
-    .note-header { padding: 8px 8px 8px 12px; }
+    .note-header { padding: 8px 6px 8px 10px; }
+    .note-header-actions { gap: 4px; }
     .note-header-actions button {
-      width: 30px; height: 30px; font-size: 14px;
+      width: 36px; height: 36px; font-size: 15px;
     }
     .note-title { font-size: 10px; }
     .note-body { font-size: 14px; padding: 10px 14px; min-height: 80px; }
-    .note-resize { width: 24px; height: 24px; }
+    .note-resize { width: 28px; height: 28px; }
 
     /* 便签历史面板 */
     .notes-history-box {
@@ -893,10 +901,16 @@ async function initBg() {
 }
 
 function applyBingBg() {
-  // CSS background-image loads cross-origin without CORS issues
-  showBg(BING_MIRROR, true);
   const today = new Date().toDateString();
+  const lastDate = localStorage.getItem('sp_bing_date') || '';
+  // 每日换新壁纸：添加日期参数绕过浏览器缓存
+  const url = BING_MIRROR + (BING_MIRROR.includes('?') ? '&' : '?') + '_t=' + today.replace(/\s/g, '');
+  showBg(url, true);
   localStorage.setItem('sp_bing_date', today);
+  // 若日期已变，后台验证新壁纸是否可达
+  if (lastDate !== today) {
+    fetchBing().catch(() => {});
+  }
 }
 
 async function fetchBing() {
@@ -1277,6 +1291,53 @@ $customOverlay.addEventListener('click', function(e) {
 
 
 
+// ============ IndexedDB 存储层 ============
+const DB_NAME = 'startpage_db';
+const DB_VERSION = 1;
+let dbPromise = null;
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('notes_store')) {
+        db.createObjectStore('notes_store');
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+  return dbPromise;
+}
+
+async function dbGet(key) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction('notes_store', 'readonly');
+      const store = tx.objectStore('notes_store');
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+  } catch(_) { return null; }
+}
+
+async function dbSet(key, value) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction('notes_store', 'readwrite');
+      const store = tx.objectStore('notes_store');
+      store.put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch(_) {}
+}
+
 // ============ 便签功能 ============
 let notes = [];
 let notesArchived = [];
@@ -1284,11 +1345,27 @@ let noteIdCounter = 0;
 let noteZ = 200;
 let dragState = null;
 
-function loadNotes() {
-  try { const r = localStorage.getItem('sp_notes'); notes = r ? JSON.parse(r) : []; }
-  catch(_) { notes = []; }
-  try { const r = localStorage.getItem('sp_notes_archived'); notesArchived = r ? JSON.parse(r) : []; }
-  catch(_) { notesArchived = []; }
+async function loadNotes() {
+  // 尝试从 IndexedDB 加载，失败则回退到 localStorage
+  let loaded = false;
+  try {
+    const r1 = await dbGet('active_notes');
+    const r2 = await dbGet('archived_notes');
+    if (r1 !== null && r1 !== undefined) { notes = r1; loaded = true; }
+    if (r2 !== null && r2 !== undefined) { notesArchived = r2; loaded = true; }
+  } catch(_) {}
+
+  if (!loaded) {
+    // 首次使用：从 localStorage 迁移数据
+    try { const r = localStorage.getItem('sp_notes'); notes = r ? JSON.parse(r) : []; } catch(_) { notes = []; }
+    try { const r = localStorage.getItem('sp_notes_archived'); notesArchived = r ? JSON.parse(r) : []; } catch(_) { notesArchived = []; }
+    // 迁移到 IndexedDB
+    if (notes.length > 0 || notesArchived.length > 0) {
+      dbSet('active_notes', notes);
+      dbSet('archived_notes', notesArchived);
+    }
+  }
+
   const allIds = [...notes, ...notesArchived].map(n => n.id||0);
   noteIdCounter = allIds.length ? Math.max(...allIds) : 0;
   // Only render active (non-archived) notes
@@ -1305,13 +1382,13 @@ function saveNotes() {
     const note = notes.find(n => n.id === id);
     if (note && body) note.content = body.innerHTML;
   });
-  try { localStorage.setItem('sp_notes', JSON.stringify(notes)); } catch(_) {
-    toast('存储空间不足，请清理部分便签');
-  }
+  dbSet('active_notes', notes).catch(() => {
+    toast('存储失败，请清理部分便签');
+  });
   // 活跃便签不同步到云端，仅本地保存
 }
 function saveArchived() {
-  try { localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived)); } catch(_) {}
+  dbSet('archived_notes', notesArchived).catch(() => {});
   // Push to cloud
   pushToCloud();
 }
@@ -2040,7 +2117,7 @@ function applyRemoteData(remoteData, rowId) {
       notesArchived = archivedNotes;
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
-      localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived));
+      dbSet('archived_notes', notesArchived);
       // 刷新历史面板（如果当前已打开）
       if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
         renderNotesHistory();
@@ -2103,7 +2180,7 @@ async function pullFromCloud() {
       notesArchived = merge(notesArchived, remoteArchived);
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
-      localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived));
+      dbSet('archived_notes', notesArchived);
       // 刷新历史面板（如果当前已打开）
       if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
         renderNotesHistory();
