@@ -2110,17 +2110,27 @@ async function subscribeToChanges() {
     .subscribe();
 }
 
+// 合并两个已归档便签数组，远程同 ID 覆盖本地，本地独有的保留
+function mergeArchived(localArr, remoteArr) {
+  const map = new Map();
+  localArr.forEach(n => map.set(n.id, n));
+  remoteArr.forEach(n => map.set(n.id, n));
+  return Array.from(map.values()).sort((a, b) => a.id - b.id);
+}
+
 function applyRemoteData(remoteData, rowId) {
   if (!remoteData) return;
   try {
-    // 仅处理已归档的便签同步，不覆盖本地的活跃便签
     const { archivedNotes } = remoteData;
     if (archivedNotes) {
-      notesArchived = archivedNotes;
+      const remoteHash = JSON.stringify(remoteData).length;
+      if (remoteHash === lastSyncHash) return; // 数据未变，跳过
+      lastSyncHash = remoteHash;
+      // 使用合并而非全量替换，防止本地未同步成功的便签被覆盖丢失
+      notesArchived = mergeArchived(notesArchived, archivedNotes);
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
       dbSet('archived_notes', notesArchived);
-      // 刷新历史面板（如果当前已打开）
       if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
         renderNotesHistory();
       }
@@ -2152,7 +2162,15 @@ async function pushToCloud() {
       await supabaseClient.from('notes_sync')
         .insert({ sync_code: syncCode, data: payload.data });
     }
-  } catch(e) { console.log('Push to cloud failed:', e); }
+  } catch(e) {
+    console.log('Push to cloud failed:', e);
+    const payloadSize = JSON.stringify(notesArchived).length;
+    if (payloadSize > 500000) {
+      toast('推送失败：数据过大（' + (payloadSize/1024).toFixed(0) + 'KB），请清理部分图片');
+    } else {
+      toast('云端推送失败，数据将在下次同步时重试');
+    }
+  }
   syncPending = false;
   // 如果期间有新的归档请求，立即重推最新数据
   if (syncRetry) { syncRetry = false; pushToCloud(); }
@@ -2173,29 +2191,20 @@ async function pullFromCloud() {
     if (data && data.length > 0 && data[0].data) {
       const remote = data[0].data;
       const remoteArchived = remote.archivedNotes || [];
-      if (remoteArchived.length === 0) return true; // 远程无数据，无需合并
-      // 仅合并已归档便签：远程同 ID 覆盖本地，本地新增保留
-      const merge = (localArr, remoteArr) => {
-        const map = new Map();
-        localArr.forEach(n => map.set(n.id, n));
-        remoteArr.forEach(n => map.set(n.id, n));
-        return Array.from(map.values()).sort((a, b) => a.id - b.id);
-      };
+      if (remoteArchived.length === 0) return true;
       const oldLen = notesArchived.length;
-      notesArchived = merge(notesArchived, remoteArchived);
+      notesArchived = mergeArchived(notesArchived, remoteArchived);
       const newCount = notesArchived.length - oldLen;
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
       dbSet('archived_notes', notesArchived);
-      // 刷新历史面板（如果当前已打开）
       if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
         renderNotesHistory();
       }
-      // Push merged result back
       pushToCloud();
       return newCount;
     }
-    return true; // 已是最新
+    return true;
   } catch(e) { console.log('Pull from cloud failed:', e); return false; }
 }
 
@@ -2284,11 +2293,7 @@ function startAutoSync() {
         .order('updated_at', { ascending: false })
         .limit(1);
       if (data && data.length > 0 && data[0].data) {
-        const hash = JSON.stringify(data[0].data).length;
-        if (hash !== lastSyncHash) {
-          lastSyncHash = hash;
-          applyRemoteData(data[0].data, data[0].id);
-        }
+        applyRemoteData(data[0].data, data[0].id);
       }
     } catch(_) {}
   }, 30000);
