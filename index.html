@@ -253,14 +253,17 @@
     border-bottom: 1px solid rgba(255,255,255,0.05);
     background: rgba(255,255,255,0.03);
   }
-  .note-header span { font-size: 11px; color: rgba(255,255,255,0.35); }
-  .note-header button {
-    width: 24px; height: 24px; border-radius: 50%; border: none;
+  .note-title { font-size: 11px; color: rgba(255,255,255,0.35); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .note-header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .note-header-actions button {
+    width: 26px; height: 26px; border-radius: 50%; border: none;
     background: transparent; color: rgba(255,255,255,0.35);
-    cursor: pointer; font-size: 14px; display: flex; align-items: center;
+    cursor: pointer; font-size: 13px; display: flex; align-items: center;
     justify-content: center; transition: all 0.15s;
   }
-  .note-header button:hover { background: rgba(239,68,68,0.6); color: #fff; }
+  .note-btn-upload:hover { background: rgba(59,130,246,0.35); color: #fff; }
+  .note-btn-archive:hover { background: rgba(34,197,94,0.35); color: #fff; }
+  .note-btn-close:hover { background: rgba(239,68,68,0.5); color: #fff; }
   .note-body {
     flex: 1; padding: 10px 14px; overflow-y: auto;
     color: rgba(255,255,255,0.80); font-size: 13px;
@@ -499,10 +502,11 @@
       left: 8px !important; right: 8px;
       max-height: 55vh;
     }
-    .note-header { padding: 8px 10px 8px 14px; }
-    .note-header button {
-      width: 30px; height: 30px; font-size: 16px;
+    .note-header { padding: 8px 8px 8px 12px; }
+    .note-header-actions button {
+      width: 30px; height: 30px; font-size: 14px;
     }
+    .note-title { font-size: 10px; }
     .note-body { font-size: 14px; padding: 10px 14px; min-height: 80px; }
     .note-resize { width: 24px; height: 24px; }
 
@@ -1386,16 +1390,29 @@ function renderNote(note) {
   el.innerHTML = `
     <div class="note-header" data-action="drag">
       <span class="note-title" id="note-title-${note.id}">${generateNoteName(note)}</span>
-      <button data-action="close" title="归档（可从历史恢复）">×</button>
+      <div class="note-header-actions">
+        <button class="note-btn-upload" title="上传文件">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <button class="note-btn-archive" title="归档到历史">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        </button>
+        <button class="note-btn-close" title="关闭（不归档）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
     </div>
     <div class="note-body" contenteditable="true" spellcheck="false">${note.content}</div>
     <div class="note-resize" data-action="resize"></div>
-  `;
+    <input type="file" class="note-file-input hidden" multiple accept="*/*">`;
 
   const header = el.querySelector('.note-header');
   const body = el.querySelector('.note-body');
   const resize = el.querySelector('.note-resize');
-  const closeBtn = el.querySelector('[data-action="close"]');
+  const uploadBtn = el.querySelector('.note-btn-upload');
+  const archiveBtn = el.querySelector('.note-btn-archive');
+  const closeBtn = el.querySelector('.note-btn-close');
+  const fileInput = el.querySelector('.note-file-input');
 
   // Bring to front on interaction
   const bringToFront = () => {
@@ -1408,15 +1425,15 @@ function renderNote(note) {
   el.addEventListener('mousedown', bringToFront);
   el.addEventListener('touchstart', bringToFront, { passive: true });
 
-  // Drag — mouse + touch
+  // Drag — mouse + touch (skip when clicking header buttons)
   const startDrag = (e, touch) => {
-    if (e.target.dataset.action === 'close') return;
+    if (e.target.closest('.note-header-actions')) return;
     const pt = touch || e;
     dragState = { el, type:'drag', sx:pt.clientX, sy:pt.clientY, ox:el.offsetLeft, oy:el.offsetTop };
   };
   header.addEventListener('mousedown', e => startDrag(e));
   header.addEventListener('touchstart', e => {
-    if (e.target.dataset.action === 'close') return;
+    if (e.target.closest('.note-header-actions')) return;
     if (e.touches.length === 1) startDrag(e, e.touches[0]);
   }, { passive: false });
 
@@ -1432,10 +1449,52 @@ function renderNote(note) {
     if (e.touches.length === 1) startResize(e, e.touches[0]);
   }, { passive: false });
 
-  // Close → archive (soft delete)
-  closeBtn.addEventListener('click', e => {
+  // Archive button
+  archiveBtn.addEventListener('click', e => {
     e.stopPropagation();
     archiveNote(note.id);
+  });
+
+  // Close button — discard without archiving
+  closeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    closeNote(note.id);
+  });
+
+  // Upload button — trigger file input
+  uploadBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  // File input change — insert files into note body
+  fileInput.addEventListener('change', () => {
+    const files = fileInput.files;
+    if (!files || files.length === 0) return;
+    body.focus();
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const dataUri = ev.target.result;
+        if (file.type.startsWith('image/')) {
+          document.execCommand('insertHTML', false, `<span class="note-img-wrap"><img src="${dataUri}" alt="${file.name}" draggable="true"><button class="note-item-del">×</button></span>`);
+        } else {
+          const sizeStr = file.size < 1024 ? file.size+'B'
+            : file.size < 1048576 ? (file.size/1024).toFixed(1)+'KB'
+            : (file.size/1048576).toFixed(1)+'MB';
+          const html = `<span class="note-file-wrap"><div class="file-attach" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,0.06);border-radius:8px;margin:3px 0;font-size:12px;color:rgba(255,255,255,0.6);max-width:100%" draggable="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12" style="flex-shrink:0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <a href="${dataUri}" download="${file.name}" style="color:rgba(255,255,255,0.7);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none">${file.name}</a>
+            <span style="opacity:0.4;flex-shrink:0">${sizeStr}</span>
+          </div><button class="note-item-del">×</button></span>`;
+          document.execCommand('insertHTML', false, html);
+        }
+        saveNotes();
+        updateNoteTitle(note.id);
+      };
+      reader.readAsDataURL(file);
+    });
+    fileInput.value = '';
   });
 
   // Content change → auto save + update title
@@ -1625,7 +1684,28 @@ function isNoteContentEmpty(content) {
   return !text && !hasImg && !hasFile;
 }
 
-// Close note: archive non-empty, discard empty
+// Close note without archiving — just remove
+function closeNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  const el = document.querySelector(`.note-wrapper[data-note-id="${id}"]`);
+  if (el) {
+    const body = el.querySelector('.note-body');
+    if (body) note.content = body.innerHTML;
+    el.remove();
+  }
+  // Discard if empty, otherwise keep locally (does not archive)
+  if (isNoteContentEmpty(note.content)) {
+    notes = notes.filter(n => n.id !== id);
+  } else {
+    // Non-empty: remove from active but don't archive
+    notes = notes.filter(n => n.id !== id);
+    toast('便签已关闭（未归档）');
+  }
+  saveNotes();
+}
+
+// Archive note: move to archived list
 function archiveNote(id) {
   const note = notes.find(n => n.id === id);
   if (!note) return;
