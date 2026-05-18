@@ -6,6 +6,8 @@
 <title>起始页</title>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIyIiB5MT0iMiIgeDI9IjM0IiB5Mj0iMzQiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNjM2NmYxIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2E4NTVmNyIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iMTgiIGN5PSIxOCIgcj0iMTYuNSIgZmlsbD0idXJsKCNnKSIvPgogIDxjaXJjbGUgY3g9IjE4IiBjeT0iMTgiIHI9IjE1LjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjIpIiBzdHJva2Utd2lkdGg9IjAuNSIvPgogIDxwYXRoIGQ9Ik0xMCAyMXYtOGw4LTUuNSA4IDUuNXY4YTEgMSAwIDAxLTEgMWgtNC41di01LjVoLTVWMjJIMTFhMSAxIDAgMDEtMS0xeiIgZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC45NSIvPgo8L3N2Zz4=">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -373,6 +375,46 @@
   .confirm-btn-cancel:hover { background: rgba(255,255,255,0.12); }
   .confirm-btn-delete { background: rgba(239,68,68,0.5); color: #fff; }
   .confirm-btn-delete:hover { background: rgba(239,68,68,0.7); }
+
+  /* ── 同步面板 ── */
+  .sync-overlay {
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(0,0,0,0.60);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+  .sync-overlay.show { opacity: 1; pointer-events: auto; }
+  .sync-panel {
+    background: rgba(22,30,50,0.94);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 28px 24px 20px;
+    width: 440px; max-width: 94vw; max-height: 82vh; overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    transform: translateY(20px);
+    transition: transform 0.35s cubic-bezier(0.22,0.61,0.36,1);
+  }
+  .sync-overlay.show .sync-panel { transform: translateY(0); }
+  .sync-code-box {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px 14px; border-radius: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    margin: 12px 0;
+  }
+  .sync-code-text {
+    font-size: 20px; font-weight: 600; color: #a5b4fc;
+    letter-spacing: 0.12em; user-select: all;
+  }
+  .sync-qr-wrap { display: flex; justify-content: center; margin: 14px 0; }
+  .sync-qr-wrap canvas, .sync-qr-wrap img { border-radius: 12px; }
+  .sync-status-dot {
+    width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+  }
+  .sync-status-dot.on { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+  .sync-status-dot.off { background: rgba(255,255,255,0.25); }
   .notes-history-preview {
     flex: 1; min-width: 0;
     color: rgba(255,255,255,0.55); font-size: 12px;
@@ -457,6 +499,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
   </button>
 
+  <button class="ico-btn group relative" id="btnSync" onclick="toggleSyncPanel()" title="云端同步">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+  </button>
   <button class="ico-btn group relative" onclick="createNote()" title="新建便签">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="16" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
   </button>
@@ -589,6 +634,64 @@
     </div>
     <div class="notes-history-list" id="notesHistoryList">
       <div class="text-white/20 text-xs text-center py-10">暂无已归档的便签</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 云端同步面板 ═══ -->
+<div class="sync-overlay" id="syncOverlay">
+  <div class="sync-panel">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-white text-base font-medium">云端同步</h3>
+      <button class="ico-btn" onclick="closeSyncPanel()" title="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- 未同步状态 -->
+    <div id="syncJoinSection" style="display:none">
+      <p class="text-white/35 text-xs mb-3">在本设备生成同步码，或将其他设备的同步码输入下方</p>
+      <button onclick="createSyncCode()"
+        style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(99,102,241,0.3);background:rgba(99,102,241,0.12);color:rgba(99,102,241,0.8);font-size:14px;cursor:pointer;font-family:inherit;transition:all 0.15s;margin-bottom:14px"
+        onmouseenter="this.style.background='rgba(99,102,241,0.25)'" onmouseleave="this.style.background='rgba(99,102,241,0.12)'">生成新同步码</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+        <span style="color:rgba(255,255,255,0.2);font-size:11px">或加入已有</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+      </div>
+      <div class="flex gap-2">
+        <input type="text" id="syncCodeInput" placeholder="输入同步码" maxlength="36"
+          style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.10);border-radius:10px;padding:10px 14px;color:#fff;font-size:14px;outline:none;font-family:inherit;letter-spacing:0.08em"
+          onkeydown="if(event.key==='Enter')joinSync()">
+        <button onclick="joinSync()"
+          style="padding:10px 20px;border-radius:10px;border:none;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s"
+          onmouseenter="this.style.background='rgba(255,255,255,0.15)'" onmouseleave="this.style.background='rgba(255,255,255,0.08)'">加入</button>
+      </div>
+      <p class="text-white/20 text-[10px] mt-2">同步码区分大小写，请妥善保管</p>
+    </div>
+
+    <!-- 已同步状态：显示同步码+QR -->
+    <div id="syncActiveSection" style="display:none">
+      <div class="flex items-center justify-center gap-2 mb-1">
+        <span class="sync-status-dot on" id="syncStatusDot"></span>
+        <span class="text-white/45 text-xs" id="syncStatusText">已连接</span>
+      </div>
+      <div class="sync-code-box">
+        <span class="sync-code-text" id="syncCodeDisplay"></span>
+        <button class="ico-btn" onclick="copySyncCode()" title="复制同步码" style="flex-shrink:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+      <div class="sync-qr-wrap" id="syncQrWrap"></div>
+      <p class="text-white/20 text-[10px] text-center mt-1">其他设备输入上方同步码或扫描二维码加入</p>
+      <div class="flex justify-center gap-3 mt-4">
+        <button onclick="pullFromCloud().then(()=>toast('同步完成'))"
+          style="padding:8px 20px;border-radius:20px;border:1px solid rgba(99,102,241,0.3);background:transparent;color:rgba(99,102,241,0.7);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s"
+          onmouseenter="this.style.background='rgba(99,102,241,0.15)'" onmouseleave="this.style.background='transparent'">手动同步</button>
+        <button onclick="disconnectSync()"
+          style="padding:8px 20px;border-radius:20px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:rgba(239,68,68,0.7);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s"
+          onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">断开同步</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1044,6 +1147,7 @@ document.addEventListener('keydown', e => {
   if (e.key==='Escape') {
     if (!$modal.classList.contains('hidden')) { closeModal(); return; }
     if ($customOverlay.classList.contains('show')) { closeCustomPanel(); return; }
+        if (document.getElementById('syncOverlay').classList.contains('show')) { closeSyncPanel(); return; }
     if (editDef) toggleEditDef();
   }
   if ((e.ctrlKey||e.metaKey) && e.shiftKey && e.key==='E') { e.preventDefault(); toggleEngine(); }
@@ -1072,6 +1176,8 @@ function loadNotes() {
   noteIdCounter = allIds.length ? Math.max(...allIds) : 0;
   // Only render active (non-archived) notes
   renderAllNotes();
+  // Init sync after local load
+  initSync();
 }
 
 function saveNotes() {
@@ -1083,12 +1189,15 @@ function saveNotes() {
     if (note && body) note.content = body.innerHTML;
   });
   try { localStorage.setItem('sp_notes', JSON.stringify(notes)); } catch(_) {
-    // QuotaExceeded - try cleaning up
     toast('存储空间不足，请清理部分便签');
   }
+  // Push to cloud
+  pushToCloud();
 }
 function saveArchived() {
   try { localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived)); } catch(_) {}
+  // Push to cloud
+  pushToCloud();
 }
 
 function createNote(x, y) {
@@ -1605,6 +1714,11 @@ document.getElementById('confirmOverlay').addEventListener('click', function(e) 
   if (e.target === this) closeConfirm();
 });
 
+// Close sync on overlay click
+document.getElementById('syncOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeSyncPanel();
+});
+
 // Global mouse handlers for drag/resize
 document.addEventListener('mousemove', e => {
   if (!dragState) return;
@@ -1635,6 +1749,232 @@ document.addEventListener('mouseup', () => {
   dragState = null;
   saveNotes();
 });
+
+// ============ 云端同步 ============
+
+let supabaseClient = null;
+let syncCode = '';
+let syncChannel = null;
+let syncPending = false;
+
+const SUPABASE_URL = 'https://lsqjeqknwqlkwfqdofyc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_6lSjxD8oKLdzyTtxaJ39wA_SDpaM3aC';
+
+function initSync() {
+  syncCode = localStorage.getItem('sp_sync_code') || '';
+  if (!syncCode) { updateSyncUI(); return; }
+  if (!SUPABASE_URL.includes('__YOUR_')) initSupabase();
+}
+
+function initSupabase() {
+  if (supabaseClient) return;
+  try {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      db: { schema: 'public' },
+      global: { headers: { 'x-sync-code': syncCode } }
+    });
+    subscribeToChanges();
+    // Pull remote changes on startup
+    pullFromCloud();
+    updateSyncUI();
+  } catch(e) { console.log('Supabase init failed:', e); }
+}
+
+async function subscribeToChanges() {
+  if (!supabaseClient || syncChannel) return;
+  syncChannel = supabase
+    .channel('notes-changes')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'notes_sync', filter: `sync_code=eq.${syncCode}` },
+      (payload) => {
+        if (payload.eventType === 'DELETE') return;
+        const record = payload.new;
+        if (!record || !record.data) return;
+        applyRemoteData(record.data, record.id);
+      }
+    )
+    .subscribe();
+}
+
+function applyRemoteData(remoteData, rowId) {
+  if (!remoteData) return;
+  try {
+    const { activeNotes, archivedNotes } = remoteData;
+    if (activeNotes) {
+      notes = activeNotes;
+      const allIds = [...notes, ...notesArchived].map(n => n.id||0);
+      noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
+      localStorage.setItem('sp_notes', JSON.stringify(notes));
+      renderAllNotes();
+    }
+    if (archivedNotes) {
+      notesArchived = archivedNotes;
+      const allIds = [...notes, ...notesArchived].map(n => n.id||0);
+      noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
+      localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived));
+    }
+  } catch(e) { console.log('Apply remote data failed:', e); }
+}
+
+async function pushToCloud() {
+  if (!supabaseClient || !syncCode) return;
+  if (syncPending) return;
+  syncPending = true;
+  try {
+    // Upsert: one row per sync_code, storing all notes as JSON
+    const payload = {
+      data: {
+        activeNotes: notes,
+        archivedNotes: notesArchived
+      }
+    };
+    // Check if row exists
+    const { data: existing } = await supabase
+      .from('notes_sync')
+      .select('id')
+      .eq('sync_code', syncCode)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      await supabaseClient.from('notes_sync')
+        .update({ data: payload.data, updated_at: new Date().toISOString() })
+        .eq('sync_code', syncCode);
+    } else {
+      await supabaseClient.from('notes_sync')
+        .insert({ sync_code: syncCode, data: payload.data });
+    }
+  } catch(e) { console.log('Push to cloud failed:', e); }
+  syncPending = false;
+}
+
+async function pullFromCloud() {
+  if (!supabaseClient || !syncCode) return;
+  try {
+    const { data } = await supabase
+      .from('notes_sync')
+      .select('data')
+      .eq('sync_code', syncCode)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0 && data[0].data) {
+      const remote = data[0].data;
+      const remoteActive = remote.activeNotes || [];
+      const remoteArchived = remote.archivedNotes || [];
+      // Merge: remote wins for same note ID, local adds new
+      const merge = (localArr, remoteArr) => {
+        const map = new Map();
+        localArr.forEach(n => map.set(n.id, n));
+        remoteArr.forEach(n => map.set(n.id, n));
+        return Array.from(map.values()).sort((a, b) => a.id - b.id);
+      };
+      notes = merge(notes, remoteActive);
+      notesArchived = merge(notesArchived, remoteArchived);
+      const allIds = [...notes, ...notesArchived].map(n => n.id||0);
+      noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
+      localStorage.setItem('sp_notes', JSON.stringify(notes));
+      localStorage.setItem('sp_notes_archived', JSON.stringify(notesArchived));
+      renderAllNotes();
+      // Push merged result back
+      pushToCloud();
+    }
+  } catch(e) { console.log('Pull from cloud failed:', e); }
+}
+
+// ── UI ──
+function updateSyncUI() {
+  const joinSection = document.getElementById('syncJoinSection');
+  const activeSection = document.getElementById('syncActiveSection');
+  const btnSync = document.getElementById('btnSync');
+  if (!joinSection || !activeSection || !btnSync) return;
+
+  if (syncCode && supabaseClient) {
+    joinSection.style.display = 'none';
+    activeSection.style.display = 'block';
+    document.getElementById('syncCodeDisplay').textContent = syncCode;
+    document.getElementById('syncStatusText').textContent = '已连接';
+    document.getElementById('syncStatusDot').className = 'sync-status-dot on';
+    btnSync.style.color = 'rgba(34,197,94,0.8)';
+    // Generate QR code
+    setTimeout(() => {
+      const qrWrap = document.getElementById('syncQrWrap');
+      if (qrWrap && !qrWrap.querySelector('canvas')) {
+        new QRCode(qrWrap, { text: syncCode, width: 140, height: 140,
+          colorDark: '#ffffff', colorLight: 'rgba(22,30,50,0.94)', correctLevel: QRCode.CorrectLevel.L });
+      }
+    }, 100);
+  } else {
+    joinSection.style.display = 'block';
+    activeSection.style.display = 'none';
+    btnSync.style.color = 'rgba(255,255,255,0.60)';
+  }
+}
+
+function toggleSyncPanel() {
+  const overlay = document.getElementById('syncOverlay');
+  if (!overlay) return;
+  updateSyncUI();
+  overlay.classList.add('show');
+}
+
+function closeSyncPanel() {
+  document.getElementById('syncOverlay').classList.remove('show');
+}
+
+function joinSync() {
+  const input = document.getElementById('syncCodeInput');
+  const code = input.value.trim();
+  if (!code) { toast('请输入同步码'); return; }
+  if (!SUPABASE_URL.includes('__YOUR_')) {
+    syncCode = code;
+    localStorage.setItem('sp_sync_code', syncCode);
+    initSupabase();
+    pushToCloud();
+    updateSyncUI();
+    toast('已加入同步');
+    input.value = '';
+  } else {
+    toast('请先配置 Supabase 连接信息');
+  }
+}
+
+function generateSyncCode() {
+  // Word-based sync code: adj-noun-number
+  const adj = ['Blue','Red','Gold','Dark','Neon','Silk','Wild','Deep','Lone','Nova','Star','Moon','Fire','Ice','Zen'];
+  const noun = ['Fox','Wolf','Hawk','Bear','Lynx','Owl','Jay','Elk','Orca','Crab','Deer','Crow','Fin','Ray','Bee'];
+  const adj2 = adj[Math.floor(Math.random()*adj.length)];
+  const noun2 = noun[Math.floor(Math.random()*noun.length)];
+  const num = Math.floor(Math.random()*9000)+1000;
+  return adj2 + '-' + noun2 + '-' + num;
+}
+
+function createSyncCode() {
+  if (!SUPABASE_URL.includes('__YOUR_')) {
+    syncCode = generateSyncCode();
+    localStorage.setItem('sp_sync_code', syncCode);
+    initSupabase();
+    pushToCloud();
+    updateSyncUI();
+    toast('同步码已生成');
+  } else {
+    toast('请先配置 Supabase 连接信息');
+  }
+}
+
+function copySyncCode() {
+  if (!syncCode) return;
+  navigator.clipboard?.writeText(syncCode).then(() => toast('同步码已复制'));
+}
+
+function disconnectSync() {
+  if (!confirm('断开同步后，其他设备将无法获取此设备的便签更新。确定断开？')) return;
+  syncCode = '';
+  localStorage.removeItem('sp_sync_code');
+  if (syncChannel) { supabaseClient.removeChannel(syncChannel); syncChannel = null; }
+  supabase = null;
+  updateSyncUI();
+  toast('已断开同步');
+}
 
 // ============ 初始化 ============
 initBg(); loadDefSC(); loadCustomSC(); renderDefSC(); loadNotes(); tick();
