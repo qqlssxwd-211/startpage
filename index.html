@@ -497,10 +497,6 @@
     <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">编辑捷径</span>
   </button>
 
-  <button class="ico-btn group relative" id="btnSync" onclick="toggleSyncPanel()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">云端同步</span>
-  </button>
   <button class="ico-btn group relative" onclick="createNote()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="20" height="16" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
     <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">新建便签</span>
@@ -625,6 +621,9 @@
         </label>
       </div>
       <div class="flex items-center gap-1.5">
+        <button class="ico-btn" id="btnSyncHistory" onclick="toggleSyncPanel()" title="云端同步" style="color:rgba(255,255,255,0.45)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        </button>
         <button class="ico-btn" id="btnBatchDel" onclick="batchDeleteNotes()" title="批量删除" style="display:none;width:auto;padding:0 10px;border-radius:20px;font-size:11px;color:rgba(239,68,68,0.7)">
           删除选中
         </button>
@@ -1886,8 +1885,8 @@ async function pullFromCloud() {
 function updateSyncUI() {
   const joinSection = document.getElementById('syncJoinSection');
   const activeSection = document.getElementById('syncActiveSection');
-  const btnSync = document.getElementById('btnSync');
-  if (!joinSection || !activeSection || !btnSync) return;
+  const btnSync = document.getElementById('btnSyncHistory');
+  if (!joinSection || !activeSection) return;
 
   if (syncCode && supabaseClient) {
     joinSection.style.display = 'none';
@@ -1895,7 +1894,7 @@ function updateSyncUI() {
     document.getElementById('syncCodeDisplay').textContent = syncCode;
     document.getElementById('syncStatusText').textContent = '已连接';
     document.getElementById('syncStatusDot').className = 'sync-status-dot on';
-    btnSync.style.color = 'rgba(34,197,94,0.8)';
+    if (btnSync) btnSync.style.color = 'rgba(34,197,94,0.8)';
     // Generate QR code
     setTimeout(() => {
       const qrWrap = document.getElementById('syncQrWrap');
@@ -1907,7 +1906,7 @@ function updateSyncUI() {
   } else {
     joinSection.style.display = 'block';
     activeSection.style.display = 'none';
-    btnSync.style.color = 'rgba(255,255,255,0.60)';
+    if (btnSync) btnSync.style.color = 'rgba(255,255,255,0.45)';
   }
 }
 
