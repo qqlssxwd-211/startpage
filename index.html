@@ -808,7 +808,7 @@
       <div class="sync-qr-wrap" id="syncQrWrap"></div>
       <p class="text-white/20 text-[10px] text-center mt-1">其他设备输入上方同步码或扫描二维码加入</p>
       <div class="flex justify-center gap-3 mt-4">
-        <button onclick="pullFromCloud().then(()=>toast('同步完成'))"
+        <button onclick="manualSync()"
           style="padding:8px 20px;border-radius:20px;border:1px solid rgba(99,102,241,0.3);background:transparent;color:rgba(99,102,241,0.7);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s"
           onmouseenter="this.style.background='rgba(99,102,241,0.15)'" onmouseleave="this.style.background='transparent'">手动同步</button>
         <button onclick="disconnectSync()"
@@ -2088,6 +2088,7 @@ function initSupabase() {
     subscribeToChanges();
     // Pull remote changes on startup
     pullFromCloud();
+    startAutoSync();
     updateSyncUI();
   } catch(e) { console.log('Supabase init failed:', e); }
 }
@@ -2158,18 +2159,21 @@ async function pushToCloud() {
 }
 
 async function pullFromCloud() {
-  if (!supabaseClient || !syncCode) return;
+  if (!supabaseClient || !syncCode) return false;
   try {
-    const { data } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('notes_sync')
       .select('data')
       .eq('sync_code', syncCode)
       .order('updated_at', { ascending: false })
       .limit(1);
 
+    if (error) throw error;
+
     if (data && data.length > 0 && data[0].data) {
       const remote = data[0].data;
       const remoteArchived = remote.archivedNotes || [];
+      if (remoteArchived.length === 0) return true; // 远程无数据，无需合并
       // 仅合并已归档便签：远程同 ID 覆盖本地，本地新增保留
       const merge = (localArr, remoteArr) => {
         const map = new Map();
@@ -2177,7 +2181,9 @@ async function pullFromCloud() {
         remoteArr.forEach(n => map.set(n.id, n));
         return Array.from(map.values()).sort((a, b) => a.id - b.id);
       };
+      const oldLen = notesArchived.length;
       notesArchived = merge(notesArchived, remoteArchived);
+      const newCount = notesArchived.length - oldLen;
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
       dbSet('archived_notes', notesArchived);
@@ -2187,8 +2193,10 @@ async function pullFromCloud() {
       }
       // Push merged result back
       pushToCloud();
+      return newCount;
     }
-  } catch(e) { console.log('Pull from cloud failed:', e); }
+    return true; // 已是最新
+  } catch(e) { console.log('Pull from cloud failed:', e); return false; }
 }
 
 // ── UI ──
@@ -2229,6 +2237,62 @@ function toggleSyncPanel() {
 
 function closeSyncPanel() {
   document.getElementById('syncOverlay').classList.remove('show');
+}
+
+async function manualSync() {
+  if (!supabaseClient || !syncCode) { toast('请先生成或加入同步码'); return; }
+  toast('正在同步…');
+  // 先推送本地数据，再拉取远程数据
+  await pushToCloud();
+  const result = await pullFromCloud();
+  if (result === false) {
+    toast('同步失败，请检查网络');
+  } else if (result === true || result === 0) {
+    toast('同步完成，已是最新');
+  } else {
+    toast(`同步完成，获取了 ${result} 条新便签`);
+  }
+  closeSyncPanel();
+}
+
+// ═══ 自动同步 ═══
+let autoSyncTimer = null;
+let lastSyncHash = '';
+
+function startAutoSync() {
+  stopAutoSync();
+  // 每 30 秒自动拉取一次
+  autoSyncTimer = setInterval(async () => {
+    if (!supabaseClient || !syncCode) return;
+    try {
+      const { data } = await supabaseClient
+        .from('notes_sync')
+        .select('data')
+        .eq('sync_code', syncCode)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (data && data.length > 0 && data[0].data) {
+        const hash = JSON.stringify(data[0].data).length;
+        if (hash !== lastSyncHash) {
+          lastSyncHash = hash;
+          applyRemoteData(data[0].data, data[0].id);
+        }
+      }
+    } catch(_) {}
+  }, 30000);
+  // 页面可见时立即同步一次
+  document.addEventListener('visibilitychange', onVisibilityChange);
+}
+
+function stopAutoSync() {
+  if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer = null; }
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+}
+
+function onVisibilityChange() {
+  if (document.hidden) return;
+  if (!supabaseClient || !syncCode) return;
+  pullFromCloud().catch(() => {});
 }
 
 function joinSync() {
@@ -2282,6 +2346,8 @@ function disconnectSync() {
   localStorage.removeItem('sp_sync_code');
   if (syncChannel) { supabaseClient.removeChannel(syncChannel); syncChannel = null; }
   supabaseClient = null;
+  stopAutoSync();
+  lastSyncHash = '';
   updateSyncUI();
   toast('已断开同步');
 }
