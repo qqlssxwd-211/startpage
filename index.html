@@ -106,10 +106,10 @@
   .sc-panel {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
     padding: 14px 20px 24px;
-    background: transparent;
+    background: transparent; text-align: center;
   }
-  .sc-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 0; }
-  .sc-edit-corner { position: absolute; top: -24px; right: -4px; z-index: 21; }
+  .sc-grid { display: inline-flex; flex-wrap: wrap; gap: 0 0; }
+  .sc-edit-corner { position: absolute; top: -28px; right: 0; z-index: 21; }
   .sc-item {
     display: flex; flex-direction: column; align-items: center; gap: 5px;
     cursor: pointer; user-select: none; transition: transform 0.18s ease;
@@ -676,7 +676,7 @@
 
 <!-- ═══ 默认捷径面板（底部常驻） ═══ -->
 <div class="sc-panel" id="scPanel">
-  <div style="position:relative;display:inline-block;left:50%;transform:translateX(-50%)">
+  <div style="display:inline-block;position:relative">
     <div class="sc-grid" id="scGrid"></div>
     <button class="ico-btn group relative sc-edit-corner" id="btnEditDef" onclick="toggleEditDef()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
