@@ -109,6 +109,7 @@
     background: transparent;
   }
   .sc-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 0; }
+  .sc-edit-corner { position: absolute; top: -24px; right: -4px; z-index: 21; }
   .sc-item {
     display: flex; flex-direction: column; align-items: center; gap: 5px;
     cursor: pointer; user-select: none; transition: transform 0.18s ease;
@@ -675,11 +676,13 @@
 
 <!-- ═══ 默认捷径面板（底部常驻） ═══ -->
 <div class="sc-panel" id="scPanel">
-  <div class="sc-grid" id="scGrid"></div>
-  <button class="ico-btn group relative" id="btnEditDef" onclick="toggleEditDef()" style="position:absolute;top:4px;right:16px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
-    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">编辑捷径</span>
-  </button>
+  <div style="position:relative;display:inline-block;left:50%;transform:translateX(-50%)">
+    <div class="sc-grid" id="scGrid"></div>
+    <button class="ico-btn group relative sc-edit-corner" id="btnEditDef" onclick="toggleEditDef()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
+      <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">编辑捷径</span>
+    </button>
+  </div>
 </div>
 
 <!-- ═══ 自定义捷径弹窗（点击时钟弹出） ═══ -->
