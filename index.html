@@ -2121,6 +2121,16 @@ async function subscribeToChanges() {
     .subscribe();
 }
 
+// 简单的字符串哈希，避免用 .length 导致不同内容同长度被误判为未变更
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
+}
+
 // 合并两个已归档便签数组，远程同 ID 覆盖本地，本地独有的保留
 function mergeArchived(localArr, remoteArr) {
   const map = new Map();
@@ -2147,7 +2157,7 @@ function mergeShortcuts(localArr, remoteArr) {
 function applyRemoteData(remoteData, rowId) {
   if (!remoteData) return;
   try {
-    const remoteHash = JSON.stringify(remoteData).length;
+    const remoteHash = hashStr(JSON.stringify(remoteData));
     if (remoteHash === lastSyncHash) return;
     lastSyncHash = remoteHash;
 
@@ -2350,7 +2360,7 @@ async function manualSync() {
 
 // ═══ 自动同步 ═══
 let autoSyncTimer = null;
-let lastSyncHash = '';
+let lastSyncHash = null;
 
 function startAutoSync() {
   stopAutoSync();
@@ -2436,7 +2446,7 @@ function disconnectSync() {
   if (syncChannel) { supabaseClient.removeChannel(syncChannel); syncChannel = null; }
   supabaseClient = null;
   stopAutoSync();
-  lastSyncHash = '';
+  lastSyncHash = null;
   updateSyncUI();
   toast('已断开同步');
 }
