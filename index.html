@@ -981,21 +981,21 @@ function handleBgUpload(e) {
         try {
           localStorage.setItem('sp_bg', compressed);
           showBg(compressed, false);
+          pushToCloud();
           toast('背景已更新');
           return;
         } catch(_) {}
       }
-      // Compression failed or still too large → try lower quality
       compressImage(rawUri, 1600, 0.5, (compressed2) => {
         if (compressed2) {
           try {
             localStorage.setItem('sp_bg', compressed2);
             showBg(compressed2, false);
+            pushToCloud();
             toast('背景已更新（高压缩）');
             return;
           } catch(_) {}
         }
-        // All failed → just show without persistence
         showBg(rawUri, false);
         toast('图片过大无法持久化，仅本次有效');
       });
@@ -1025,6 +1025,7 @@ function switchToBing() {
   localStorage.setItem('sp_bg_mode', 'bing');
   localStorage.removeItem('sp_bg');
   applyBingBg();
+  pushToCloud();
   toast('已切换为必应壁纸');
 }
 
@@ -1158,7 +1159,7 @@ function loadDefSC() {
   try { const r = localStorage.getItem('sp_sc'); defShortcuts = r ? JSON.parse(r) : [...DEF_SC]; }
   catch(_) { defShortcuts = [...DEF_SC]; }
 }
-function saveDefSC() { localStorage.setItem('sp_sc', JSON.stringify(defShortcuts)); }
+function saveDefSC() { localStorage.setItem('sp_sc', JSON.stringify(defShortcuts)); pushToCloud(); }
 function renderDefSC() {
   $scGrid.innerHTML = defShortcuts.map((s,i) => `
     <div class="sc-item" onclick="${editDef?`openEditDef(${i})`:`openUrl('${s.url.replace(/'/g,"\\'")}')`}" title="${editDef?'点击编辑':s.url}">
@@ -1192,7 +1193,7 @@ function loadCustomSC() {
   try { const r = localStorage.getItem('sp_sc_custom'); customShortcuts = r ? JSON.parse(r) : []; }
   catch(_) { customShortcuts = []; }
 }
-function saveCustomSC() { localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts)); }
+function saveCustomSC() { localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts)); pushToCloud(); }
 function renderCustomSC() {
   if (customShortcuts.length === 0) {
     $customGrid.innerHTML = '<div class="text-white/25 text-xs py-8">暂无自定义捷径，点击下方 + 按钮添加</div>';
@@ -2118,16 +2119,24 @@ function mergeArchived(localArr, remoteArr) {
   return Array.from(map.values()).sort((a, b) => a.id - b.id);
 }
 
+// 合并两个捷径数组，以 name 为唯一标识，远程覆盖本地同名，各自独有保留
+function mergeShortcuts(localArr, remoteArr) {
+  const map = new Map();
+  localArr.forEach(s => map.set(s.name, s));
+  remoteArr.forEach(s => map.set(s.name, s));
+  return Array.from(map.values());
+}
+
 function applyRemoteData(remoteData, rowId) {
   if (!remoteData) return;
   try {
-    const { archivedNotes } = remoteData;
-    if (archivedNotes) {
-      const remoteHash = JSON.stringify(remoteData).length;
-      if (remoteHash === lastSyncHash) return; // 数据未变，跳过
-      lastSyncHash = remoteHash;
-      // 使用合并而非全量替换，防止本地未同步成功的便签被覆盖丢失
-      notesArchived = mergeArchived(notesArchived, archivedNotes);
+    const remoteHash = JSON.stringify(remoteData).length;
+    if (remoteHash === lastSyncHash) return;
+    lastSyncHash = remoteHash;
+
+    // 1. 合并已归档便签
+    if (remoteData.archivedNotes) {
+      notesArchived = mergeArchived(notesArchived, remoteData.archivedNotes);
       const allIds = [...notes, ...notesArchived].map(n => n.id||0);
       noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
       dbSet('archived_notes', notesArchived);
@@ -2135,7 +2144,52 @@ function applyRemoteData(remoteData, rowId) {
         renderNotesHistory();
       }
     }
+
+    // 2. 同步背景设置
+    if (remoteData.bgMode) {
+      applyRemoteBg(remoteData.bgMode, remoteData.bgImage || null);
+    }
+
+    // 3. 合并底部默认捷径
+    if (remoteData.defShortcuts && remoteData.defShortcuts.length > 0) {
+      defShortcuts = mergeShortcuts(defShortcuts, remoteData.defShortcuts);
+      localStorage.setItem('sp_sc', JSON.stringify(defShortcuts));
+      renderDefSC();
+    }
+
+    // 4. 合并时钟自定义捷径
+    if (remoteData.customShortcuts && remoteData.customShortcuts.length > 0) {
+      customShortcuts = mergeShortcuts(customShortcuts, remoteData.customShortcuts);
+      localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts));
+      if (document.getElementById('customOverlay').classList.contains('show')) {
+        renderCustomSC();
+      }
+    }
   } catch(e) { console.log('Apply remote data failed:', e); }
+}
+
+// 应用远程背景设置
+function applyRemoteBg(mode, bgImage) {
+  if (mode === 'bing') {
+    if (bgMode !== 'bing') {
+      bgMode = 'bing';
+      localStorage.setItem('sp_bg_mode', 'bing');
+      localStorage.removeItem('sp_bg');
+      applyBingBg();
+    }
+  } else if (mode === 'custom' && bgImage) {
+    if (bgMode !== 'custom' || localStorage.getItem('sp_bg') !== bgImage) {
+      bgMode = 'custom';
+      localStorage.setItem('sp_bg_mode', 'custom');
+      localStorage.setItem('sp_bg', bgImage);
+      showBg(bgImage, false);
+    }
+  } else if (mode === 'default') {
+    bgMode = 'default';
+    localStorage.setItem('sp_bg_mode', 'default');
+    localStorage.removeItem('sp_bg');
+    showDefBg();
+  }
 }
 
 async function pushToCloud() {
@@ -2145,9 +2199,16 @@ async function pushToCloud() {
   syncPending = true;
   syncRetry = false;
   try {
-    // 快照当前 notesArchived，避免推送过程中被修改
     const snapshot = JSON.parse(JSON.stringify(notesArchived));
-    const payload = { data: { archivedNotes: snapshot } };
+    const payload = {
+      data: {
+        archivedNotes: snapshot,
+        bgMode: bgMode,
+        bgImage: bgMode === 'custom' ? (localStorage.getItem('sp_bg') || null) : null,
+        defShortcuts: defShortcuts,
+        customShortcuts: customShortcuts
+      }
+    };
     const { data: existing } = await supabaseClient
       .from('notes_sync')
       .select('id')
@@ -2190,17 +2251,11 @@ async function pullFromCloud() {
 
     if (data && data.length > 0 && data[0].data) {
       const remote = data[0].data;
-      const remoteArchived = remote.archivedNotes || [];
-      if (remoteArchived.length === 0) return true;
       const oldLen = notesArchived.length;
-      notesArchived = mergeArchived(notesArchived, remoteArchived);
+      // 统一通过 applyRemoteData 合并所有设置
+      applyRemoteData(remote);
       const newCount = notesArchived.length - oldLen;
-      const allIds = [...notes, ...notesArchived].map(n => n.id||0);
-      noteIdCounter = allIds.length ? Math.max(...allIds) : noteIdCounter;
-      dbSet('archived_notes', notesArchived);
-      if (document.getElementById('notesHistoryOverlay').classList.contains('show')) {
-        renderNotesHistory();
-      }
+      // 推送合并后的结果，确保双向同步
       pushToCloud();
       return newCount;
     }
