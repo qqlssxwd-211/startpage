@@ -1306,7 +1306,9 @@ $searchIn.addEventListener('keydown', e => {
   if (e.key==='Enter') { clearTimeout(tranTimer); if (tranCtrl) { tranCtrl.abort(); tranCtrl=null; } doSearch(); }
 });
 document.addEventListener('keydown', e => {
-  if (!editDef && !editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement !== $searchIn && !document.activeElement.closest('.note-body')) {
+  const el = document.activeElement;
+  const isInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.closest('.note-body'));
+  if (!editDef && !editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && !isInput) {
     const n = parseInt(e.key);
     if (n>=0 && n<=9 && n<defShortcuts.length) { e.preventDefault(); openUrl(defShortcuts[n].url); }
   }
