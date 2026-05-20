@@ -629,6 +629,11 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">便签历史</span>
   </button>
+
+  <button class="ico-btn group relative" id="btnSyncHistory" onclick="toggleSyncPanel()" title="云端同步">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+    <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">云端同步</span>
+  </button>
 </div>
 <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
 
@@ -744,9 +749,6 @@
         </label>
       </div>
       <div class="flex items-center gap-1.5">
-        <button class="ico-btn" id="btnSyncHistory" onclick="toggleSyncPanel()" title="云端同步" style="color:rgba(255,255,255,0.45)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-        </button>
         <button class="ico-btn" id="btnBatchDel" onclick="batchDeleteNotes()" title="批量删除" style="display:none;width:auto;padding:0 10px;border-radius:20px;font-size:11px;color:rgba(239,68,68,0.7)">
           删除选中
         </button>
@@ -769,6 +771,13 @@
       <button class="ico-btn" onclick="closeSyncPanel()" title="关闭">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+      <span style="padding:3px 10px;border-radius:20px;background:rgba(99,102,241,0.12);color:rgba(99,102,241,0.7);font-size:11px">壁纸背景</span>
+      <span style="padding:3px 10px;border-radius:20px;background:rgba(34,197,94,0.12);color:rgba(34,197,94,0.7);font-size:11px">底部捷径</span>
+      <span style="padding:3px 10px;border-radius:20px;background:rgba(249,115,22,0.12);color:rgba(249,115,22,0.7);font-size:11px">自定义捷径</span>
+      <span style="padding:3px 10px;border-radius:20px;background:rgba(239,68,68,0.12);color:rgba(239,68,68,0.7);font-size:11px">已归档便签</span>
     </div>
 
     <!-- 未同步状态 -->
@@ -1155,16 +1164,25 @@ async function handleTranslate() {
 function copyTran() { if (lastTran) navigator.clipboard?.writeText(lastTran).then(()=>toast('已复制')); }
 
 // ============ 默认底部捷径 ============
+let defSCUpdatedAt = 0;
+let customSCUpdatedAt = 0;
+
 function loadDefSC() {
   try { const r = localStorage.getItem('sp_sc'); defShortcuts = r ? JSON.parse(r) : [...DEF_SC]; }
   catch(_) { defShortcuts = [...DEF_SC]; }
+  defSCUpdatedAt = parseInt(localStorage.getItem('sp_sc_ver')) || 0;
   // 为旧数据补充时间戳
   const now = Date.now();
   let updated = false;
   defShortcuts.forEach(s => { if (!s.updatedAt) { s.updatedAt = now; updated = true; } });
-  if (updated) saveDefSC();
+  if (updated) { defSCUpdatedAt = now; localStorage.setItem('sp_sc_ver', defSCUpdatedAt); saveDefSC(); }
 }
-function saveDefSC() { localStorage.setItem('sp_sc', JSON.stringify(defShortcuts)); pushToCloud(); }
+function saveDefSC() {
+  defSCUpdatedAt = Date.now();
+  localStorage.setItem('sp_sc', JSON.stringify(defShortcuts));
+  localStorage.setItem('sp_sc_ver', defSCUpdatedAt);
+  pushToCloud();
+}
 function renderDefSC() {
   $scGrid.innerHTML = defShortcuts.map((s,i) => `
     <div class="sc-item" onclick="${editDef?`openEditDef(${i})`:`openUrl('${s.url.replace(/'/g,"\\'")}')`}" title="${editDef?'点击编辑':s.url}">
@@ -1197,12 +1215,18 @@ function delDefSC(i) { defShortcuts.splice(i,1); saveDefSC(); renderDefSC(); toa
 function loadCustomSC() {
   try { const r = localStorage.getItem('sp_sc_custom'); customShortcuts = r ? JSON.parse(r) : []; }
   catch(_) { customShortcuts = []; }
+  customSCUpdatedAt = parseInt(localStorage.getItem('sp_sc_custom_ver')) || 0;
   const now = Date.now();
   let updated = false;
   customShortcuts.forEach(s => { if (!s.updatedAt) { s.updatedAt = now; updated = true; } });
-  if (updated) saveCustomSC();
+  if (updated) { customSCUpdatedAt = now; localStorage.setItem('sp_sc_custom_ver', customSCUpdatedAt); saveCustomSC(); }
 }
-function saveCustomSC() { localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts)); pushToCloud(); }
+function saveCustomSC() {
+  customSCUpdatedAt = Date.now();
+  localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts));
+  localStorage.setItem('sp_sc_custom_ver', customSCUpdatedAt);
+  pushToCloud();
+}
 function renderCustomSC() {
   if (customShortcuts.length === 0) {
     $customGrid.innerHTML = '<div class="text-white/25 text-xs py-8">暂无自定义捷径，点击下方 + 按钮添加</div>';
@@ -2177,19 +2201,27 @@ function applyRemoteData(remoteData, rowId) {
       applyRemoteBg(remoteData.bgMode, remoteData.bgImage || null);
     }
 
-    // 3. 合并底部默认捷径
-    if (remoteData.defShortcuts && remoteData.defShortcuts.length > 0) {
-      defShortcuts = mergeShortcuts(defShortcuts, remoteData.defShortcuts);
-      localStorage.setItem('sp_sc', JSON.stringify(defShortcuts));
-      renderDefSC();
+    // 3. 同步底部默认捷径：版本号更新则全量替换（支持删除同步）
+    if (remoteData.defShortcuts && remoteData.defSCUpdatedAt !== undefined) {
+      if (remoteData.defSCUpdatedAt > defSCUpdatedAt) {
+        defShortcuts = remoteData.defShortcuts;
+        defSCUpdatedAt = remoteData.defSCUpdatedAt;
+        localStorage.setItem('sp_sc', JSON.stringify(defShortcuts));
+        localStorage.setItem('sp_sc_ver', defSCUpdatedAt);
+        renderDefSC();
+      }
     }
 
-    // 4. 合并时钟自定义捷径
-    if (remoteData.customShortcuts && remoteData.customShortcuts.length > 0) {
-      customShortcuts = mergeShortcuts(customShortcuts, remoteData.customShortcuts);
-      localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts));
-      if (document.getElementById('customOverlay').classList.contains('show')) {
-        renderCustomSC();
+    // 4. 同步时钟自定义捷径：版本号更新则全量替换
+    if (remoteData.customShortcuts && remoteData.customSCUpdatedAt !== undefined) {
+      if (remoteData.customSCUpdatedAt > customSCUpdatedAt) {
+        customShortcuts = remoteData.customShortcuts;
+        customSCUpdatedAt = remoteData.customSCUpdatedAt;
+        localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts));
+        localStorage.setItem('sp_sc_custom_ver', customSCUpdatedAt);
+        if (document.getElementById('customOverlay').classList.contains('show')) {
+          renderCustomSC();
+        }
       }
     }
   } catch(e) { console.log('Apply remote data failed:', e); }
@@ -2233,7 +2265,9 @@ async function pushToCloud() {
         bgMode: bgMode,
         bgImage: bgMode === 'custom' ? (localStorage.getItem('sp_bg') || null) : null,
         defShortcuts: defShortcuts,
-        customShortcuts: customShortcuts
+        defSCUpdatedAt: defSCUpdatedAt,
+        customShortcuts: customShortcuts,
+        customSCUpdatedAt: customSCUpdatedAt
       }
     };
     const { data: existing } = await supabaseClient
