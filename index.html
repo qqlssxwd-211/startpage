@@ -1158,6 +1158,11 @@ function copyTran() { if (lastTran) navigator.clipboard?.writeText(lastTran).the
 function loadDefSC() {
   try { const r = localStorage.getItem('sp_sc'); defShortcuts = r ? JSON.parse(r) : [...DEF_SC]; }
   catch(_) { defShortcuts = [...DEF_SC]; }
+  // 为旧数据补充时间戳
+  const now = Date.now();
+  let updated = false;
+  defShortcuts.forEach(s => { if (!s.updatedAt) { s.updatedAt = now; updated = true; } });
+  if (updated) saveDefSC();
 }
 function saveDefSC() { localStorage.setItem('sp_sc', JSON.stringify(defShortcuts)); pushToCloud(); }
 function renderDefSC() {
@@ -1192,6 +1197,10 @@ function delDefSC(i) { defShortcuts.splice(i,1); saveDefSC(); renderDefSC(); toa
 function loadCustomSC() {
   try { const r = localStorage.getItem('sp_sc_custom'); customShortcuts = r ? JSON.parse(r) : []; }
   catch(_) { customShortcuts = []; }
+  const now = Date.now();
+  let updated = false;
+  customShortcuts.forEach(s => { if (!s.updatedAt) { s.updatedAt = now; updated = true; } });
+  if (updated) saveCustomSC();
 }
 function saveCustomSC() { localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts)); pushToCloud(); }
 function renderCustomSC() {
@@ -1245,8 +1254,9 @@ function saveShortcut() {
   const idx=parseInt($mIdx.value);
   const target=$mTarget.value;
   const list = target === 'custom' ? customShortcuts : defShortcuts;
-  if (idx>=0 && idx<list.length) { list[idx]={...list[idx],name,url}; }
-  else { list.push({name,url,color}); }
+  const now = Date.now();
+  if (idx>=0 && idx<list.length) { list[idx]={...list[idx],name,url,updatedAt:now}; }
+  else { list.push({name,url,color,updatedAt:now}); }
   if (target==='custom') { saveCustomSC(); renderCustomSC(); }
   else { saveDefSC(); renderDefSC(); }
   closeModal(); toast(idx>=0?'已更新':'已添加');
@@ -2119,11 +2129,18 @@ function mergeArchived(localArr, remoteArr) {
   return Array.from(map.values()).sort((a, b) => a.id - b.id);
 }
 
-// 合并两个捷径数组，以 name 为唯一标识，远程覆盖本地同名，各自独有保留
+// 合并两个捷径数组，以 name 为唯一标识，比较 updatedAt 保留最新版本
 function mergeShortcuts(localArr, remoteArr) {
   const map = new Map();
   localArr.forEach(s => map.set(s.name, s));
-  remoteArr.forEach(s => map.set(s.name, s));
+  remoteArr.forEach(s => {
+    const existing = map.get(s.name);
+    if (!existing) { map.set(s.name, s); return; }
+    // 比较时间戳，保留最新修改的版本
+    const localTime = existing.updatedAt || 0;
+    const remoteTime = s.updatedAt || 0;
+    if (remoteTime > localTime) map.set(s.name, s);
+  });
   return Array.from(map.values());
 }
 
