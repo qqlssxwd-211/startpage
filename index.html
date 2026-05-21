@@ -109,7 +109,6 @@
     background: transparent; text-align: center;
   }
   .sc-grid { display: inline-flex; flex-wrap: wrap; gap: 0 0; }
-  .sc-edit-corner { position: absolute; top: -28px; right: 0; z-index: 21; }
   .sc-item {
     display: flex; flex-direction: column; align-items: center; gap: 5px;
     cursor: pointer; user-select: none; transition: transform 0.18s ease;
@@ -142,7 +141,7 @@
   }
   .editing .sc-del { opacity: 1; transform: scale(1); }
 
-  /* ── 自定义捷径弹窗 ── */
+  /* ── 我的快捷方式弹窗 ── */
   .custom-overlay {
     position: fixed; inset: 0; z-index: 80;
     background: rgba(0,0,0,0.60);
@@ -545,7 +544,7 @@
     .history-item-check { order: 0; }
     .notes-history-section-title { font-size: 9px; }
 
-    /* 自定义捷径弹窗 */
+    /* 我的快捷方式弹窗 */
     .custom-box {
       width: calc(100vw - 16px) !important; max-width: none;
       max-height: 80vh; padding: 20px 12px 16px; border-radius: 16px;
@@ -637,7 +636,7 @@
 <div class="relative z-10 flex flex-col items-center w-full px-5" style="padding-top: 15vh;">
 
   <!-- 时钟 -->
-  <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-1 select-none cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-transform" id="timeDisplay" onclick="openCustomPanel()" title="点击打开自定义捷径面板">00:00</div>
+  <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-1 select-none cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-transform" id="timeDisplay" onclick="openCustomPanel()" title="点击打开我的快捷方式">00:00</div>
   <div class="text-white/60 text-sm tracking-[0.16em] mb-10 select-none" id="dateDisplay"></div>
 
   <!-- ═══ 搜索框 ═══ -->
@@ -676,16 +675,12 @@
 
 <!-- ═══ 默认捷径面板（底部常驻） ═══ -->
 <div class="sc-panel" id="scPanel">
-  <div style="display:inline-block;position:relative">
+  <div id="scGridWrap" style="display:inline-block;position:relative">
     <div class="sc-grid" id="scGrid"></div>
-    <button class="ico-btn group relative sc-edit-corner" id="btnEditDef" onclick="toggleEditDef()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>
-      <span class="absolute -bottom-6 right-0 text-[10px] text-white/45 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">编辑捷径</span>
-    </button>
   </div>
 </div>
 
-<!-- ═══ 自定义捷径弹窗（点击时钟弹出） ═══ -->
+<!-- ═══ 我的快捷方式弹窗 ═══ -->
 <div class="custom-overlay" id="customOverlay">
   <div class="custom-box">
     <div class="flex items-center justify-between mb-5">
@@ -700,10 +695,10 @@
       </div>
     </div>
     <div class="custom-grid" id="customGrid">
-      <div class="text-white/25 text-xs py-8">暂无自定义捷径，点击下方按钮添加</div>
+      <div class="text-white/25 text-xs py-8">暂无快捷方式，点击下方 + 按钮添加</div>
     </div>
     <div class="flex justify-center mt-5">
-      <button class="ico-btn border border-dashed border-white/20 w-10 h-10" onclick="openCustomAdd()" title="添加自定义捷径">
+      <button class="ico-btn border border-dashed border-white/20 w-10 h-10" onclick="openCustomAdd()" title="添加快捷方式">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="color:rgba(255,255,255,0.55)"><path d="M12 5v14M5 12h14"/></svg>
       </button>
     </div>
@@ -727,7 +722,6 @@
       <button class="px-5 py-2.5 rounded-lg bg-white/12 text-white text-sm hover:bg-white/22 transition-colors font-medium" onclick="saveShortcut()">保存</button>
     </div>
     <input type="hidden" id="modalIdx" value="-1">
-    <input type="hidden" id="modalTarget" value="def">
   </div>
 </div>
 
@@ -777,8 +771,7 @@
 
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
       <span style="padding:3px 10px;border-radius:20px;background:rgba(99,102,241,0.12);color:rgba(99,102,241,0.7);font-size:11px">壁纸背景</span>
-      <span style="padding:3px 10px;border-radius:20px;background:rgba(34,197,94,0.12);color:rgba(34,197,94,0.7);font-size:11px">底部捷径</span>
-      <span style="padding:3px 10px;border-radius:20px;background:rgba(249,115,22,0.12);color:rgba(249,115,22,0.7);font-size:11px">自定义捷径</span>
+      <span style="padding:3px 10px;border-radius:20px;background:rgba(34,197,94,0.12);color:rgba(34,197,94,0.7);font-size:11px">快捷方式</span>
       <span style="padding:3px 10px;border-radius:20px;background:rgba(239,68,68,0.12);color:rgba(239,68,68,0.7);font-size:11px">已归档便签</span>
     </div>
 
@@ -860,7 +853,6 @@ const $date        = document.getElementById('dateDisplay');
 const $toast       = document.getElementById('toast');
 const $scPanel     = document.getElementById('scPanel');
 const $scGrid      = document.getElementById('scGrid');
-const $btnEditDef  = document.getElementById('btnEditDef');
 const $customOverlay=document.getElementById('customOverlay');
 const $customGrid  = document.getElementById('customGrid');
 const $btnEditCustom=document.getElementById('btnEditCustom');
@@ -869,28 +861,14 @@ const $mTitle      = document.getElementById('modalTitle');
 const $mName       = document.getElementById('modalName');
 const $mUrl        = document.getElementById('modalUrl');
 const $mIdx        = document.getElementById('modalIdx');
-const $mTarget     = document.getElementById('modalTarget');
 
 // ============ 状态 ============
 let engine = 'baidu';
-let editDef = false;
 let editCustom = false;
 let tranTimer = null;
 let tranCtrl = null;
 let lastTran = '';
-let defShortcuts = [];    // 默认底部面板
-let customShortcuts = []; // 自定义弹窗面板
-
-const DEF_SC = [
-  { name:'GitHub', url:'https://github.com',      color:'#333' },
-  { name:'B站',    url:'https://www.bilibili.com', color:'#fb7299' },
-  { name:'知乎',   url:'https://www.zhihu.com',    color:'#0066ff' },
-  { name:'微博',   url:'https://weibo.com',        color:'#e6162d' },
-  { name:'豆瓣',   url:'https://www.douban.com',   color:'#00b51d' },
-  { name:'V2EX',   url:'https://www.v2ex.com',     color:'#778899' },
-  { name:'掘金',   url:'https://juejin.cn',        color:'#1e80ff' },
-  { name:'百度',   url:'https://www.baidu.com',    color:'#2932e1' },
-];
+let customShortcuts = []; // 统一的快捷方式（底部面板和弹窗共用）
 
 // ============ 背景 ============
 let bgMode = 'bing'; // 'bing' | 'custom' | 'default'
@@ -1165,55 +1143,22 @@ async function handleTranslate() {
 }
 function copyTran() { if (lastTran) navigator.clipboard?.writeText(lastTran).then(()=>toast('已复制')); }
 
-// ============ 默认底部捷径 ============
-let defSCUpdatedAt = 0;
+// ============ 统一快捷方式 ============
 let customSCUpdatedAt = 0;
 
-function loadDefSC() {
-  try { const r = localStorage.getItem('sp_sc'); defShortcuts = r ? JSON.parse(r) : [...DEF_SC]; }
-  catch(_) { defShortcuts = [...DEF_SC]; }
-  defSCUpdatedAt = parseInt(localStorage.getItem('sp_sc_ver')) || 0;
-  // 为旧数据补充时间戳
-  const now = Date.now();
-  let updated = false;
-  defShortcuts.forEach(s => { if (!s.updatedAt) { s.updatedAt = now; updated = true; } });
-  if (updated) { defSCUpdatedAt = now; localStorage.setItem('sp_sc_ver', defSCUpdatedAt); saveDefSC(); }
-}
-function saveDefSC() {
-  defSCUpdatedAt = Date.now();
-  localStorage.setItem('sp_sc', JSON.stringify(defShortcuts));
-  localStorage.setItem('sp_sc_ver', defSCUpdatedAt);
-  pushToCloud();
-}
+// 渲染底部捷径面板（只读，点击直接打开链接）
 function renderDefSC() {
-  $scGrid.innerHTML = defShortcuts.map((s,i) => `
-    <div class="sc-item" onclick="${editDef?`openEditDef(${i})`:`openUrl('${s.url.replace(/'/g,"\\'")}')`}" title="${editDef?'点击编辑':s.url}">
+  $scGrid.innerHTML = customShortcuts.map((s,i) => `
+    <div class="sc-item" onclick="openUrl('${s.url.replace(/'/g,"\\'")}')" title="${s.url}">
       <div class="sc-icon-wrap" style="background:${s.color}">
         <span class="sc-icon-char">${s.name.charAt(0)}</span>
-        ${editDef?`<span class="sc-del" onclick="event.stopPropagation();delDefSC(${i})">&times;</span>`:''}
       </div>
       <span class="sc-name">${s.name}</span>
     </div>
   `).join('');
-  $scPanel.classList.toggle('editing', editDef);
-  const svgEl = $btnEditDef.querySelector('svg');
-  if (svgEl) {
-    svgEl.outerHTML = editDef
-      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>';
-  }
-  const tooltip = $btnEditDef.querySelector('span');
-  if (tooltip) tooltip.textContent = editDef ? '完成编辑' : '编辑捷径';
 }
-function toggleEditDef() { editDef = !editDef; renderDefSC(); }
-function openEditDef(i) {
-  $mTitle.textContent='编辑默认捷径'; $mName.value=defShortcuts[i].name; $mUrl.value=defShortcuts[i].url;
-  $mIdx.value=i; $mTarget.value='def';
-  $modal.classList.remove('hidden'); setTimeout(()=>$mName.focus(), 100);
-}
-function delDefSC(i) { defShortcuts.splice(i,1); saveDefSC(); renderDefSC(); toast('已删除'); }
 
-// ============ 自定义捷径弹窗 ============
+// ============ 我的快捷方式弹窗（统一编辑入口） ============
 function loadCustomSC() {
   try { const r = localStorage.getItem('sp_sc_custom'); customShortcuts = r ? JSON.parse(r) : []; }
   catch(_) { customShortcuts = []; }
@@ -1227,11 +1172,12 @@ function saveCustomSC() {
   customSCUpdatedAt = Date.now();
   localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts));
   localStorage.setItem('sp_sc_custom_ver', customSCUpdatedAt);
+  renderDefSC(); // 同步更新底部面板
   pushToCloud();
 }
 function renderCustomSC() {
   if (customShortcuts.length === 0) {
-    $customGrid.innerHTML = '<div class="text-white/25 text-xs py-8">暂无自定义捷径，点击下方 + 按钮添加</div>';
+    $customGrid.innerHTML = '<div class="text-white/25 text-xs py-8">暂无快捷方式，点击下方 + 按钮添加</div>';
   } else {
     $customGrid.innerHTML = customShortcuts.map((s,i) => `
       <div class="custom-item" onclick="${editCustom?`openEditCustom(${i})`:`openUrl('${s.url.replace(/'/g,"\\'")}')`}" title="${editCustom?'点击编辑':s.url}">
@@ -1247,7 +1193,7 @@ function renderCustomSC() {
   $btnEditCustom.innerHTML = editCustom
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M15 5l4 4"/></svg>';
-  $btnEditCustom.title = editCustom ? '完成编辑' : '编辑自定义捷径';
+  $btnEditCustom.title = editCustom ? '完成编辑' : '编辑快捷方式';
 }
 function openCustomPanel() {
   $customOverlay.classList.add('show');
@@ -1259,13 +1205,13 @@ function closeCustomPanel() {
 }
 function toggleEditCustom() { editCustom = !editCustom; renderCustomSC(); }
 function openCustomAdd() {
-  $mTitle.textContent='添加自定义捷径'; $mName.value=''; $mUrl.value='';
-  $mIdx.value='-1'; $mTarget.value='custom';
+  $mTitle.textContent='添加快捷方式'; $mName.value=''; $mUrl.value='';
+  $mIdx.value='-1';
   $modal.classList.remove('hidden'); setTimeout(()=>$mName.focus(), 100);
 }
 function openEditCustom(i) {
-  $mTitle.textContent='编辑自定义捷径'; $mName.value=customShortcuts[i].name;
-  $mUrl.value=customShortcuts[i].url; $mIdx.value=i; $mTarget.value='custom';
+  $mTitle.textContent='编辑快捷方式'; $mName.value=customShortcuts[i].name;
+  $mUrl.value=customShortcuts[i].url; $mIdx.value=i;
   $modal.classList.remove('hidden'); setTimeout(()=>$mName.focus(), 100);
 }
 function delCustomSC(i) { customShortcuts.splice(i,1); saveCustomSC(); renderCustomSC(); toast('已删除'); }
@@ -1278,19 +1224,16 @@ function saveShortcut() {
   const colors=['#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6','#06b6d4','#ef4444','#22c55e','#3b82f6','#f59e0b','#e11d48','#0891b2'];
   const color=colors[Math.floor(Math.random()*colors.length)];
   const idx=parseInt($mIdx.value);
-  const target=$mTarget.value;
-  const list = target === 'custom' ? customShortcuts : defShortcuts;
   const now = Date.now();
-  if (idx>=0 && idx<list.length) { list[idx]={...list[idx],name,url,updatedAt:now}; }
-  else { list.push({name,url,color,updatedAt:now}); }
-  if (target==='custom') { saveCustomSC(); renderCustomSC(); }
-  else { saveDefSC(); renderDefSC(); }
+  if (idx>=0 && idx<customShortcuts.length) { customShortcuts[idx]={...customShortcuts[idx],name,url,updatedAt:now}; }
+  else { customShortcuts.push({name,url,color,updatedAt:now}); }
+  saveCustomSC(); renderCustomSC();
   closeModal(); toast(idx>=0?'已更新':'已添加');
 }
 
 // ============ 通用 ============
 function openUrl(url) {
-  if (editDef || editCustom) return;
+  if (editCustom) return;
   if (!/^https?:\/\//i.test(url)) url='https://'+url;
   window.open(url, '_blank');
 }
@@ -1308,9 +1251,9 @@ $searchIn.addEventListener('keydown', e => {
 document.addEventListener('keydown', e => {
   const el = document.activeElement;
   const isInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.closest('.note-body'));
-  if (!editDef && !editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && !isInput) {
+  if (!editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && !isInput) {
     const n = parseInt(e.key);
-    if (n>=0 && n<=9 && n<defShortcuts.length) { e.preventDefault(); openUrl(defShortcuts[n].url); }
+    if (n>=0 && n<=9 && n<customShortcuts.length) { e.preventDefault(); openUrl(customShortcuts[n].url); }
   }
   if ((e.ctrlKey||e.metaKey) && e.key==='o') { e.preventDefault(); document.getElementById('bgUpload').click(); }
   if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); $searchIn.focus(); $searchIn.select(); }
@@ -1318,7 +1261,6 @@ document.addEventListener('keydown', e => {
     if (!$modal.classList.contains('hidden')) { closeModal(); return; }
     if ($customOverlay.classList.contains('show')) { closeCustomPanel(); return; }
         if (document.getElementById('syncOverlay').classList.contains('show')) { closeSyncPanel(); return; }
-    if (editDef) toggleEditDef();
   }
   if ((e.ctrlKey||e.metaKey) && e.shiftKey && e.key==='E') { e.preventDefault(); toggleEngine(); }
 });
@@ -2167,21 +2109,6 @@ function mergeArchived(localArr, remoteArr) {
   return Array.from(map.values()).sort((a, b) => a.id - b.id);
 }
 
-// 合并两个捷径数组，以 name 为唯一标识，比较 updatedAt 保留最新版本
-function mergeShortcuts(localArr, remoteArr) {
-  const map = new Map();
-  localArr.forEach(s => map.set(s.name, s));
-  remoteArr.forEach(s => {
-    const existing = map.get(s.name);
-    if (!existing) { map.set(s.name, s); return; }
-    // 比较时间戳，保留最新修改的版本
-    const localTime = existing.updatedAt || 0;
-    const remoteTime = s.updatedAt || 0;
-    if (remoteTime > localTime) map.set(s.name, s);
-  });
-  return Array.from(map.values());
-}
-
 function applyRemoteData(remoteData, rowId) {
   if (!remoteData) return;
   try {
@@ -2205,24 +2132,14 @@ function applyRemoteData(remoteData, rowId) {
       applyRemoteBg(remoteData.bgMode, remoteData.bgImage || null);
     }
 
-    // 3. 同步底部默认捷径：版本号更新则全量替换（支持删除同步）
-    if (remoteData.defShortcuts && remoteData.defSCUpdatedAt !== undefined) {
-      if (remoteData.defSCUpdatedAt > defSCUpdatedAt) {
-        defShortcuts = remoteData.defShortcuts;
-        defSCUpdatedAt = remoteData.defSCUpdatedAt;
-        localStorage.setItem('sp_sc', JSON.stringify(defShortcuts));
-        localStorage.setItem('sp_sc_ver', defSCUpdatedAt);
-        renderDefSC();
-      }
-    }
-
-    // 4. 同步时钟自定义捷径：版本号更新则全量替换
+    // 3. 同步快捷方式：版本号更新则全量替换（支持删除同步）
     if (remoteData.customShortcuts && remoteData.customSCUpdatedAt !== undefined) {
       if (remoteData.customSCUpdatedAt > customSCUpdatedAt) {
         customShortcuts = remoteData.customShortcuts;
         customSCUpdatedAt = remoteData.customSCUpdatedAt;
         localStorage.setItem('sp_sc_custom', JSON.stringify(customShortcuts));
         localStorage.setItem('sp_sc_custom_ver', customSCUpdatedAt);
+        renderDefSC();
         if (document.getElementById('customOverlay').classList.contains('show')) {
           renderCustomSC();
         }
@@ -2268,8 +2185,6 @@ async function pushToCloud() {
         archivedNotes: snapshot,
         bgMode: bgMode,
         bgImage: bgMode === 'custom' ? (localStorage.getItem('sp_bg') || null) : null,
-        defShortcuts: defShortcuts,
-        defSCUpdatedAt: defSCUpdatedAt,
         customShortcuts: customShortcuts,
         customSCUpdatedAt: customSCUpdatedAt
       }
@@ -2490,7 +2405,7 @@ function disconnectSync() {
 }
 
 // ============ 初始化 ============
-initBg(); loadDefSC(); loadCustomSC(); renderDefSC(); loadNotes(); tick();
+initBg(); loadCustomSC(); renderDefSC(); loadNotes(); tick();
 setInterval(tick, 1000);
 </script>
 </body>
