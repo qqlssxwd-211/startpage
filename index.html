@@ -505,7 +505,7 @@
     .tran-card { width: calc(100% - 16px) !important; margin: 0 8px; }
 
     /* 主体上边距 */
-    .relative.z-10 { padding-top: 12vh !important; padding-left: 12px; padding-right: 12px; }
+    .relative.z-10 { padding-top: 5vh !important; padding-left: 12px; padding-right: 12px; }
 
     /* 底部捷径面板 */
     .sc-panel { padding: 8px 6px 16px; }
@@ -633,11 +633,11 @@
 <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
 
 <!-- ═══ 主体 ═══ -->
-<div class="relative z-10 flex flex-col items-center w-full px-5" style="padding-top: 15vh;">
+<div class="relative z-10 flex flex-col items-center w-full px-5" style="padding-top: 6vh;">
 
   <!-- 时钟 -->
-  <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-1 select-none cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-transform" id="timeDisplay" onclick="openCustomPanel()" title="点击打开我的快捷方式">00:00</div>
-  <div class="text-white/60 text-sm tracking-[0.16em] mb-10 select-none" id="dateDisplay"></div>
+  <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-0 select-none cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-transform" id="timeDisplay" onclick="openCustomPanel()" title="点击打开我的快捷方式">00:00</div>
+  <div class="text-white/60 text-sm tracking-[0.16em] mb-4 select-none" id="dateDisplay"></div>
 
   <!-- ═══ 搜索框 ═══ -->
   <div class="search-wrap flex items-center gap-2 pl-4 pr-3 py-1.5 mx-auto" id="searchBox">
@@ -1159,9 +1159,15 @@ function renderDefSC() {
 }
 
 // ============ 我的快捷方式弹窗（统一编辑入口） ============
+const DEFAULT_SC = [
+  { name:'B站', url:'https://www.bilibili.com', color:'#fb7299', updatedAt: Date.now() },
+  { name:'COROS运动分析', url:'https://coros.pages.dev', color:'#6366f1', updatedAt: Date.now() },
+  { name:'Meteoblue', url:'https://www.meteoblue.com/', color:'#14b8a6', updatedAt: Date.now() },
+];
+
 function loadCustomSC() {
-  try { const r = localStorage.getItem('sp_sc_custom'); customShortcuts = r ? JSON.parse(r) : []; }
-  catch(_) { customShortcuts = []; }
+  try { const r = localStorage.getItem('sp_sc_custom'); customShortcuts = r ? JSON.parse(r) : [...DEFAULT_SC]; }
+  catch(_) { customShortcuts = [...DEFAULT_SC]; }
   customSCUpdatedAt = parseInt(localStorage.getItem('sp_sc_custom_ver')) || 0;
   const now = Date.now();
   let updated = false;
@@ -1253,7 +1259,7 @@ document.addEventListener('keydown', e => {
   const isInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.closest('.note-body'));
   if (!editCustom && !e.ctrlKey && !e.metaKey && !e.altKey && !isInput) {
     const n = parseInt(e.key);
-    if (n>=0 && n<=9 && n<customShortcuts.length) { e.preventDefault(); openUrl(customShortcuts[n].url); }
+    if (n>=1 && n<=9 && n-1<customShortcuts.length) { e.preventDefault(); openUrl(customShortcuts[n-1].url); }
   }
   if ((e.ctrlKey||e.metaKey) && e.key==='o') { e.preventDefault(); document.getElementById('bgUpload').click(); }
   if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); $searchIn.focus(); $searchIn.select(); }
