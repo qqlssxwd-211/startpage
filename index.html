@@ -125,6 +125,7 @@
   }
   .sc-item:hover .sc-icon-wrap { box-shadow: 0 4px 14px rgba(0,0,0,0.22); }
   .sc-icon-char { font-size: 16px; font-weight: 600; color: #fff; }
+  .sc-favicon { width: 20px; height: 20px; border-radius: 3px; }
   .sc-name {
     font-size: 10px; color: rgba(255,255,255,0.65);
     text-align: center; max-width: 60px;
@@ -179,6 +180,7 @@
   }
   .custom-item:hover .custom-icon-wrap { box-shadow: 0 5px 16px rgba(0,0,0,0.30); }
   .custom-icon-char { font-size: 19px; font-weight: 600; color: #fff; }
+  .custom-favicon { width: 24px; height: 24px; border-radius: 4px; }
   .custom-name {
     font-size: 10px; color: rgba(255,255,255,0.70);
     text-align: center; max-width: 66px;
@@ -505,7 +507,7 @@
     .tran-card { width: calc(100% - 16px) !important; margin: 0 8px; }
 
     /* 主体上边距 */
-    .relative.z-10 { padding-top: 5vh !important; padding-left: 12px; padding-right: 12px; }
+    .relative.z-10 { padding-top: 6vh !important; padding-left: 12px; padding-right: 12px; }
 
     /* 底部捷径面板 */
     .sc-panel { padding: 8px 6px 16px; }
@@ -633,7 +635,7 @@
 <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
 
 <!-- ═══ 主体 ═══ -->
-<div class="relative z-10 flex flex-col items-center w-full px-5" style="padding-top: 6vh;">
+<div class="relative z-10 flex flex-col items-center w-full px-5" style="padding-top: 8vh;">
 
   <!-- 时钟 -->
   <div class="clock text-white text-[84px] font-extralight tracking-[0.12em] mb-0 select-none cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-transform" id="timeDisplay" onclick="openCustomPanel()" title="点击打开我的快捷方式">00:00</div>
@@ -1147,11 +1149,16 @@ function copyTran() { if (lastTran) navigator.clipboard?.writeText(lastTran).the
 let customSCUpdatedAt = 0;
 
 // 渲染底部捷径面板（只读，点击直接打开链接）
+function getFavicon(url) {
+  try { return 'https://www.google.com/s2/favicons?domain=' + new URL(url).hostname + '&sz=32'; }
+  catch(_) { return ''; }
+}
 function renderDefSC() {
   $scGrid.innerHTML = customShortcuts.map((s,i) => `
     <div class="sc-item" onclick="openUrl('${s.url.replace(/'/g,"\\'")}')" title="${s.url}">
       <div class="sc-icon-wrap" style="background:${s.color}">
-        <span class="sc-icon-char">${s.name.charAt(0)}</span>
+        <img src="${getFavicon(s.url)}" class="sc-favicon" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+        <span class="sc-icon-char" style="display:none">${s.name.charAt(0)}</span>
       </div>
       <span class="sc-name">${s.name}</span>
     </div>
@@ -1188,7 +1195,8 @@ function renderCustomSC() {
     $customGrid.innerHTML = customShortcuts.map((s,i) => `
       <div class="custom-item" onclick="${editCustom?`openEditCustom(${i})`:`openUrl('${s.url.replace(/'/g,"\\'")}')`}" title="${editCustom?'点击编辑':s.url}">
         <div class="custom-icon-wrap" style="background:${s.color}">
-          <span class="custom-icon-char">${s.name.charAt(0)}</span>
+          <img src="${getFavicon(s.url)}" class="custom-favicon" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+          <span class="custom-icon-char" style="display:none">${s.name.charAt(0)}</span>
           ${editCustom?`<span class="custom-del" onclick="event.stopPropagation();delCustomSC(${i})">&times;</span>`:''}
         </div>
         <span class="custom-name">${s.name}</span>
